@@ -89,6 +89,44 @@ public class GridManager : MonoBehaviour
             tile.GetComponent<SpriteRenderer>().color = Color.yellow;
         }
     }
+
+    TileRotation.Direction GetValidStartDirection(int x, int y)
+    {
+        // Create a list of all 4 possible directions
+        List<TileRotation.Direction> validDirections = new List<TileRotation.Direction>
+    {
+        TileRotation.Direction.Up,
+        TileRotation.Direction.Right,
+        TileRotation.Direction.Down,
+        TileRotation.Direction.Left
+    };
+
+        // 1. Always remove Left (since x is 0)
+        validDirections.Remove(TileRotation.Direction.Left);
+
+        // 2. If at the very bottom, remove Down
+        if (y == 0)
+            validDirections.Remove(TileRotation.Direction.Down);
+
+        // 3. If at the very top, remove Up
+        if (y == height - 1)
+            validDirections.Remove(TileRotation.Direction.Up);
+
+        // 4. Pick a random direction from the remaining safe options
+        int randomIndex = Random.Range(0, validDirections.Count);
+        return validDirections[randomIndex];
+    }
+
+    TileRotation.Direction GetValidEndDirection(int x, int y)
+    {
+        // For the End Tile, we usually want it pointing 'Off-screen' to the Right
+        return TileRotation.Direction.Right;
+
+        // If you want it to be random but safe:
+        // Follow the same List.Remove logic as the Start tile, 
+        // but remove 'Right' instead of 'Left'.
+    }
+
     void Start()
     {
         allTiles = new TileRotation[width, height];
@@ -105,22 +143,49 @@ public class GridManager : MonoBehaviour
         // Visual indicator so we can see the new Start/End
         allTiles[startCoords.x, startCoords.y].GetComponent<SpriteRenderer>().color = Color.green;
         allTiles[endCoords.x, endCoords.y].GetComponent<SpriteRenderer>().color = Color.red;
+
+        TracePath();
+
+        // This automatically scales the camera based on the grid height
+        Camera.main.orthographicSize = (height / 2f) + 1f;
     }
 
     void GenerateGrid()
     {
+        float xOffset = (width - 1) / 2f;
+        float yOffset = (height - 1) / 2f;
+
         for (int x = 0; x < width; x++)
         {
             for (int y = 0; y < height; y++)
             {
-                GameObject newTile = Instantiate(tilePrefab, new Vector3(x, y, 0), Quaternion.identity);
-                newTile.transform.parent = this.transform;
+                Vector3 spawnPos = new Vector3(x - xOffset, y - yOffset, 0);
+                GameObject newTile = Instantiate(tilePrefab, spawnPos, Quaternion.identity);
 
-                // Store the TileRotation component in our array
-                allTiles[x, y] = newTile.GetComponent<TileRotation>();
-                // Give the tile its coordinates so it knows where it is
-                allTiles[x, y].gridX = x;
-                allTiles[x, y].gridY = y;
+                TileRotation tileScript = newTile.GetComponent<TileRotation>();
+
+                // Inside your GenerateGrid loop...
+                TileRotation.Direction finalDir;
+
+                if (x == startCoords.x && y == startCoords.y)
+                {
+                    // Use our special safe logic for the start tile
+                    finalDir = GetValidStartDirection(x, y);
+                }
+                else
+                {
+                    // Use the standard 0-3 random for everything else
+                    finalDir = (TileRotation.Direction)Random.Range(0, 4);
+                }
+
+                // Apply the direction to the script and the rotation
+                tileScript.currentDirection = finalDir;
+                newTile.transform.eulerAngles = new Vector3(0, 0, (int)finalDir * -90f);
+                // -------------------------------
+
+                tileScript.gridX = x;
+                tileScript.gridY = y;
+                allTiles[x, y] = tileScript;
             }
         }
     }
