@@ -8,6 +8,10 @@ public class GridManager : MonoBehaviour
     public int width = 5;
     public int height = 5;
 
+    [Header("Level Balance")]
+    [Range(0f, 1f)]
+    public float hazardChance = 0.1f;
+
     // This 2D array stores our tile references
     public TileRotation[,] allTiles;
 
@@ -73,20 +77,10 @@ public class GridManager : MonoBehaviour
     {
         foreach (TileRotation tile in allTiles)
         {
-            // Don't reset the Start and End colors
-            if (tile == allTiles[startCoords.x, startCoords.y] || tile == allTiles[endCoords.x, endCoords.y])
-                continue;
+            if (IsStartOrEnd(tile.gridX, tile.gridY)) continue;
 
-            tile.GetComponent<SpriteRenderer>().color = Color.white;
-        }
-
-        foreach (TileRotation tile in path)
-        {
-            // Don't turn the Start/End tiles yellow
-            if (tile == allTiles[startCoords.x, startCoords.y] || tile == allTiles[endCoords.x, endCoords.y])
-                continue;
-
-            tile.GetComponent<SpriteRenderer>().color = Color.yellow;
+            bool isPath = path.Contains(tile);
+            tile.GetComponent<TileProperty>().RefreshVisuals(isPath);
         }
     }
 
@@ -125,6 +119,11 @@ public class GridManager : MonoBehaviour
         // If you want it to be random but safe:
         // Follow the same List.Remove logic as the Start tile, 
         // but remove 'Right' instead of 'Left'.
+    }
+
+    bool IsStartOrEnd(int x, int y)
+    {
+        return (x == startCoords.x && y == startCoords.y) || (x == endCoords.x && y == endCoords.y);
     }
 
     void Start()
@@ -182,6 +181,19 @@ public class GridManager : MonoBehaviour
                 tileScript.currentDirection = finalDir;
                 newTile.transform.eulerAngles = new Vector3(0, 0, (int)finalDir * -90f);
                 // -------------------------------
+
+                if (x == endCoords.x && y == endCoords.y)
+                {
+                    // Find the child and turn it on
+                    Transform goal = newTile.transform.Find("GoalIndicator");
+                    if (goal != null) goal.gameObject.SetActive(true);
+                }
+
+                // 10% chance to be a Spike trap, excluding Start and End tiles
+                if (Random.value < hazardChance && !IsStartOrEnd(x, y))
+                {
+                    newTile.GetComponent<TileProperty>().SetType(TileProperty.TileType.Spike);
+                }
 
                 tileScript.gridX = x;
                 tileScript.gridY = y;
