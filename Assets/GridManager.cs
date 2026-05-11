@@ -149,6 +149,39 @@ public class GridManager : MonoBehaviour
         return (x == startCoords.x && y == startCoords.y) || (x == endCoords.x && y == endCoords.y);
     }
 
+    public void SwapTiles(TileRotation scriptA, TileRotation scriptB)
+    {
+        // 1. Safety Gate
+        if (scriptA == null || scriptB == null) return;
+        if (IsStartOrEnd(scriptA.gridX, scriptA.gridY) || IsStartOrEnd(scriptB.gridX, scriptB.gridY)) return;
+
+        TileProperty propA = scriptA.GetComponent<TileProperty>();
+        TileProperty propB = scriptB.GetComponent<TileProperty>();
+
+        // 2. BACKUP DATA FROM A
+        TileProperty.TileType typeA = propA.type;
+        TileProperty.HazardData dataA = propA.currentData;
+        TileRotation.Direction dirA = scriptA.currentDirection;
+        Vector3 rotA = scriptA.transform.eulerAngles;
+
+        // 3. OVERWRITE A WITH B
+        propA.SetType(propB.type); // This updates Color
+        propA.currentData = propB.currentData;
+        scriptA.currentDirection = scriptB.currentDirection;
+        scriptA.transform.eulerAngles = scriptB.transform.eulerAngles;
+
+        // 4. OVERWRITE B WITH A (using backups)
+        propB.SetType(typeA); // This updates Color
+        propB.currentData = dataA;
+        scriptB.currentDirection = dirA;
+        scriptB.transform.eulerAngles = rotA;
+
+        // 5. FORCE GRID RE-CALCULATION
+        TracePath();
+
+        Debug.Log($"Swapped {scriptA.gridX},{scriptA.gridY} with {scriptB.gridX},{scriptB.gridY}");
+    }
+
     void Start()
     {
         allTiles = new TileRotation[width, height];
