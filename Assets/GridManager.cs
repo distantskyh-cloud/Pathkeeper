@@ -10,7 +10,30 @@ public class GridManager : MonoBehaviour
 
     [Header("Level Balance")]
     [Range(0f, 1f)]
-    public float hazardChance = 0.1f;
+    public float hazardChance = 0.2f;
+
+    // Tile effect master settings
+    [Header("Master Hazard Balancer")]
+    // Spikes: High instant damage, no speed change
+    public TileProperty.HazardData spikeStats = new TileProperty.HazardData { damage = 10f, speedMult = 1f, dotDamage = 0f, duration = 0f };
+
+    // Slow: No damage, cuts speed in half
+    public TileProperty.HazardData slowStats = new TileProperty.HazardData { damage = 0f, speedMult = 0.5f, dotDamage = 0f, duration = 0f };
+
+    // Burn: Low instant damage, high DoT for a short time
+    public TileProperty.HazardData burnStats = new TileProperty.HazardData { damage = 5f, speedMult = 1f, dotDamage = 4f, duration = 3f };
+
+    // Freeze: Stops unit completely for a moment
+    public TileProperty.HazardData freezeStats = new TileProperty.HazardData { damage = 0f, speedMult = 0f, dotDamage = 0f, duration = 1.5f };
+
+    // Pitfall: The "Delete" button
+    public TileProperty.HazardData pitfallStats = new TileProperty.HazardData { damage = 999f, speedMult = 0f, dotDamage = 0f, duration = 0f };
+
+    // Poison: No instant damage, but lasts "forever" (-1)
+    public TileProperty.HazardData poisonStats = new TileProperty.HazardData { damage = 0f, speedMult = 1f, dotDamage = 1f, duration = -1f };
+
+    // Static: Slight slow and medium DoT
+    public TileProperty.HazardData staticStats = new TileProperty.HazardData { damage = 2f, speedMult = 0.8f, dotDamage = 2f, duration = 2f };
 
     // This 2D array stores our tile references
     public TileRotation[,] allTiles;
@@ -163,7 +186,6 @@ public class GridManager : MonoBehaviour
 
                 TileRotation tileScript = newTile.GetComponent<TileRotation>();
 
-                // Inside your GenerateGrid loop...
                 TileRotation.Direction finalDir;
 
                 if (x == startCoords.x && y == startCoords.y)
@@ -184,15 +206,30 @@ public class GridManager : MonoBehaviour
 
                 if (x == endCoords.x && y == endCoords.y)
                 {
-                    // Find the child and turn it on
+                    // Find the child and turn "GoalIndicator" on
                     Transform goal = newTile.transform.Find("GoalIndicator");
                     if (goal != null) goal.gameObject.SetActive(true);
                 }
 
-                // 10% chance to be a Spike trap, excluding Start and End tiles
+                // Example for randomizing all types in GridManager
                 if (Random.value < hazardChance && !IsStartOrEnd(x, y))
                 {
-                    newTile.GetComponent<TileProperty>().SetType(TileProperty.TileType.Spike);
+                    // Picks a random hazard from the Enum (skipping 'Normal' at index 0)
+                    int randomHazard = Random.Range(1, System.Enum.GetValues(typeof(TileProperty.TileType)).Length);
+                    newTile.GetComponent<TileProperty>().SetType((TileProperty.TileType)randomHazard);
+
+                    TileProperty tp = newTile.GetComponent<TileProperty>();
+
+                    switch (tp.type)
+                    {
+                        case TileProperty.TileType.Spike: tp.currentData = spikeStats; break;
+                        case TileProperty.TileType.Slow: tp.currentData = slowStats; break;
+                        case TileProperty.TileType.Burn: tp.currentData = burnStats; break;
+                        case TileProperty.TileType.Freeze: tp.currentData = freezeStats; break;
+                        case TileProperty.TileType.Pitfall: tp.currentData = pitfallStats; break;
+                        case TileProperty.TileType.Poison: tp.currentData = poisonStats; break;
+                        case TileProperty.TileType.Static: tp.currentData = staticStats; break;
+                    }
                 }
 
                 tileScript.gridX = x;
