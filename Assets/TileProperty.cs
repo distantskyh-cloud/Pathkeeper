@@ -14,7 +14,7 @@ public class TileProperty : MonoBehaviour
     public HazardData currentData;
 
     // Tile types
-    public enum TileType { Normal, Spike, Slow, Burn, Freeze, Pitfall, Poison, Static }
+    public enum TileType { Normal, Spike, Slow, Burn, Freeze, Pitfall, Poison, Static, Bleed, Curse }
     public TileType type = TileType.Normal;
 
     // Setting the tile type
@@ -33,11 +33,13 @@ public class TileProperty : MonoBehaviour
         {
             case TileType.Spike: hex = "#808080"; break; // Gray
             case TileType.Slow: hex = "#5C4033"; break; // Brown
-            case TileType.Burn: hex = "#8B0000"; break; // Dark Red
-            case TileType.Freeze: hex = "#00FFFF"; break; // Cyan
+            case TileType.Burn: hex = "#FF8C00"; break; // Orange
+            case TileType.Freeze: hex = "#A5F2F3"; break; // Ice Blue
             case TileType.Pitfall: hex = "#000000"; break; // Black
-            case TileType.Poison: hex = "#800080"; break; // Purple
-            case TileType.Static: hex = "#B8860B"; break; // Dark Yellow
+            case TileType.Poison: hex = "#228B22"; break; // Forest Green (Differs from Start)
+            case TileType.Static: hex = "#FFFF00"; break; // Yellow
+            case TileType.Bleed: hex = "#800000"; break; // Maroon (Differs from End)
+            case TileType.Curse: hex = "#4B0082"; break; // Indigo/Deep Purple
         }
 
         if (ColorUtility.TryParseHtmlString(hex, out Color customColor))
