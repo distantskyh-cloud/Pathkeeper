@@ -122,6 +122,51 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &252631686
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 252631688}
+  - component: {fileID: 252631687}
+  m_Layer: 0
+  m_Name: SelectionManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &252631687
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 252631686}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4eb472992c2f0fa429f92ce823feea9f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  highlightColor: {r: 1, g: 1, b: 1, a: 1}
+--- !u!4 &252631688
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 252631686}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.7171299, y: 0.021704387, z: -0.096719585}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &519420028
 GameObject:
   m_ObjectHideFlags: 0
@@ -244,9 +289,44 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   tilePrefab: {fileID: 1865703344442735408, guid: 00c3a67ec33404b449adbc84b918f9fd, type: 3}
-  width: 7
-  height: 7
+  width: 15
+  height: 15
   hazardChance: 0.1
+  spikeStats:
+    damage: 10
+    speedMult: 1
+    dotDamage: 0
+    duration: 0
+  pitfallStats:
+    damage: 999
+    speedMult: 0
+    dotDamage: 0
+    duration: 0
+  slowStats:
+    damage: 0
+    speedMult: 0.5
+    dotDamage: 0
+    duration: 0
+  freezeStats:
+    damage: 0
+    speedMult: 0
+    dotDamage: 0
+    duration: 1.5
+  burnStats:
+    damage: 5
+    speedMult: 1
+    dotDamage: 4
+    duration: 3
+  poisonStats:
+    damage: 0
+    speedMult: 1
+    dotDamage: 1
+    duration: -1
+  staticStats:
+    damage: 2
+    speedMult: 0.8
+    dotDamage: 2
+    duration: 2
   startCoords: {x: 0, y: 0}
   endCoords: {x: 4, y: 4}
 --- !u!4 &733815103
@@ -270,3 +350,4 @@ SceneRoots:
   m_Roots:
   - {fileID: 519420032}
   - {fileID: 733815103}
+  - {fileID: 252631688}

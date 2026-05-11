@@ -17,23 +17,29 @@ public class GridManager : MonoBehaviour
     // Spikes: High instant damage, no speed change
     public TileProperty.HazardData spikeStats = new TileProperty.HazardData { damage = 10f, speedMult = 1f, dotDamage = 0f, duration = 0f };
 
+    // Pitfall: The "Delete" button
+    public TileProperty.HazardData pitfallStats = new TileProperty.HazardData { damage = 999f, speedMult = 0f, dotDamage = 0f, duration = 0f };
+
     // Slow: No damage, cuts speed in half
     public TileProperty.HazardData slowStats = new TileProperty.HazardData { damage = 0f, speedMult = 0.5f, dotDamage = 0f, duration = 0f };
-
-    // Burn: Low instant damage, high DoT for a short time
-    public TileProperty.HazardData burnStats = new TileProperty.HazardData { damage = 5f, speedMult = 1f, dotDamage = 4f, duration = 3f };
 
     // Freeze: Stops unit completely for a moment
     public TileProperty.HazardData freezeStats = new TileProperty.HazardData { damage = 0f, speedMult = 0f, dotDamage = 0f, duration = 1.5f };
 
-    // Pitfall: The "Delete" button
-    public TileProperty.HazardData pitfallStats = new TileProperty.HazardData { damage = 999f, speedMult = 0f, dotDamage = 0f, duration = 0f };
+    // Burn: Low instant damage, high DoT for a short time
+    public TileProperty.HazardData burnStats = new TileProperty.HazardData { damage = 5f, speedMult = 1f, dotDamage = 4f, duration = 3f };
 
     // Poison: No instant damage, but lasts "forever" (-1)
     public TileProperty.HazardData poisonStats = new TileProperty.HazardData { damage = 0f, speedMult = 1f, dotDamage = 1f, duration = -1f };
 
     // Static: Slight slow and medium DoT
     public TileProperty.HazardData staticStats = new TileProperty.HazardData { damage = 2f, speedMult = 0.8f, dotDamage = 2f, duration = 2f };
+
+    // Bleed: No instant damage, but movement-based (Logic handled in Unit script)
+    public TileProperty.HazardData bleedStats = new TileProperty.HazardData { damage = 0f, speedMult = 1f, dotDamage = 3f, duration = 5f };
+
+    // Curse: No damage, but sets a flag for 1.5x damage taken
+    public TileProperty.HazardData curseStats = new TileProperty.HazardData { damage = 0f, speedMult = 1f, dotDamage = 0f, duration = 10f };
 
     // This 2D array stores our tile references
     public TileRotation[,] allTiles;
@@ -229,6 +235,8 @@ public class GridManager : MonoBehaviour
                         case TileProperty.TileType.Pitfall: tp.currentData = pitfallStats; break;
                         case TileProperty.TileType.Poison: tp.currentData = poisonStats; break;
                         case TileProperty.TileType.Static: tp.currentData = staticStats; break;
+                        case TileProperty.TileType.Bleed: tp.currentData = bleedStats; break;
+                        case TileProperty.TileType.Curse: tp.currentData = curseStats; break;
                     }
                 }
 
