@@ -5,8 +5,8 @@ using UnityEngine;
 public class GridManager : MonoBehaviour
 {
     public GameObject tilePrefab;
-    public int width = 5;
-    public int height = 5;
+    public int width;
+    public int height;
 
     [Header("Level Balance")]
     [Range(0f, 1f)]

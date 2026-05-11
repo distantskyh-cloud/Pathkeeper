@@ -13,9 +13,11 @@ public class TileProperty : MonoBehaviour
 
     public HazardData currentData;
 
+    // Tile types
     public enum TileType { Normal, Spike, Slow, Burn, Freeze, Pitfall, Poison, Static }
     public TileType type = TileType.Normal;
 
+    // Setting the tile type
     public void SetType(TileType newType)
     {
         type = newType;
