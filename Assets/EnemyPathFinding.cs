@@ -21,6 +21,7 @@ public class EnemyPathFinding : MonoBehaviour
     {
         if (pathPoints == null || targetIndex >= pathPoints.Count) return;
 
+        // Move smoothly across the flat 2D plane
         transform.position = Vector3.MoveTowards(transform.position, pathPoints[targetIndex], speed * Time.deltaTime);
 
         if (Vector3.Distance(transform.position, pathPoints[targetIndex]) < 0.1f)

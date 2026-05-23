@@ -12,7 +12,6 @@ public class GridManager : MonoBehaviour
     [Range(0f, 1f)]
     public float hazardChance = 0.1f;
 
-    // This 2D array stores our tile references
     public TileRotation[,] allTiles;
 
     public Vector2Int startCoords = new Vector2Int(0, 0);
@@ -21,16 +20,13 @@ public class GridManager : MonoBehaviour
 
     public void TracePath()
     {
-
         List<TileRotation> pathList = new List<TileRotation>();
         currentPathWorldPositions.Clear();
         Vector2Int currentPos = startCoords;
         bool goalReached = false;
 
-        // We limit the loop to the total number of tiles to prevent infinite crashes
         for (int i = 0; i < (width * height); i++)
         {
-            // 1. Check if current position is within grid boundaries
             if (currentPos.x < 0 || currentPos.x >= width || currentPos.y < 0 || currentPos.y >= height)
             {
                 Debug.Log("Path went out of bounds!");
@@ -38,9 +34,7 @@ public class GridManager : MonoBehaviour
             }
 
             TileRotation currentTile = allTiles[currentPos.x, currentPos.y];
-           
 
-            // 2. Check for Infinite Loops
             if (pathList.Contains(currentTile))
             {
                 Debug.Log("Infinite Loop detected!");
@@ -50,14 +44,12 @@ public class GridManager : MonoBehaviour
             pathList.Add(currentTile);
             currentPathWorldPositions.Add(currentTile.transform.position);
 
-            // 3. Check if we reached the Goal
             if (currentPos == endCoords)
             {
                 goalReached = true;
                 break;
             }
 
-            // 4. Move to the next coordinate based on the tile's currentDirection
             currentPos = GetNextCoords(currentPos, currentTile.currentDirection);
 
             Debug.Log($"Tracer at {currentPos} is moving {currentTile.currentDirection}");
@@ -91,39 +83,29 @@ public class GridManager : MonoBehaviour
 
     TileRotation.Direction GetValidStartDirection(int x, int y)
     {
-        // Create a list of all 4 possible directions
         List<TileRotation.Direction> validDirections = new List<TileRotation.Direction>
-    {
-        TileRotation.Direction.Up,
-        TileRotation.Direction.Right,
-        TileRotation.Direction.Down,
-        TileRotation.Direction.Left
-    };
+        {
+            TileRotation.Direction.Up,
+            TileRotation.Direction.Right,
+            TileRotation.Direction.Down,
+            TileRotation.Direction.Left
+        };
 
-        // 1. Always remove Left (since x is 0)
         validDirections.Remove(TileRotation.Direction.Left);
 
-        // 2. If at the very bottom, remove Down
         if (y == 0)
             validDirections.Remove(TileRotation.Direction.Down);
 
-        // 3. If at the very top, remove Up
         if (y == height - 1)
             validDirections.Remove(TileRotation.Direction.Up);
 
-        // 4. Pick a random direction from the remaining safe options
         int randomIndex = Random.Range(0, validDirections.Count);
         return validDirections[randomIndex];
     }
 
     TileRotation.Direction GetValidEndDirection(int x, int y)
     {
-        // For the End Tile, we usually want it pointing 'Off-screen' to the Right
         return TileRotation.Direction.Right;
-
-        // If you want it to be random but safe:
-        // Follow the same List.Remove logic as the Start tile, 
-        // but remove 'Right' instead of 'Left'.
     }
 
     bool IsStartOrEnd(int x, int y)
@@ -135,23 +117,27 @@ public class GridManager : MonoBehaviour
     {
         allTiles = new TileRotation[width, height];
 
-        // Randomize the Y positions
         int randomStartY = Random.Range(0, height);
         int randomEndY = Random.Range(0, height);
 
         startCoords = new Vector2Int(0, randomStartY);
-        endCoords = new Vector2Int(width - 1, randomEndY); // Use width-1 so it works for any grid size
+        endCoords = new Vector2Int(width - 1, randomEndY);
 
         GenerateGrid();
 
-        // Visual indicator so we can see the new Start/End
         allTiles[startCoords.x, startCoords.y].GetComponent<SpriteRenderer>().color = Color.green;
         allTiles[endCoords.x, endCoords.y].GetComponent<SpriteRenderer>().color = Color.red;
 
         TracePath();
 
-        // This automatically scales the camera based on the grid height
         Camera.main.orthographicSize = (height / 2f) + 1f;
+
+        // Force the enemy spawner to reset its clock now that path coordinates exist
+        EnemySpawner spawner = FindObjectOfType<EnemySpawner>();
+        if (spawner != null)
+        {
+            spawner.ResetSpawner();
+        }
     }
 
     void GenerateGrid()
@@ -167,34 +153,26 @@ public class GridManager : MonoBehaviour
                 GameObject newTile = Instantiate(tilePrefab, spawnPos, Quaternion.identity);
 
                 TileRotation tileScript = newTile.GetComponent<TileRotation>();
-
-                // Inside your GenerateGrid loop...
                 TileRotation.Direction finalDir;
 
                 if (x == startCoords.x && y == startCoords.y)
                 {
-                    // Use our special safe logic for the start tile
                     finalDir = GetValidStartDirection(x, y);
                 }
                 else
                 {
-                    // Use the standard 0-3 random for everything else
                     finalDir = (TileRotation.Direction)Random.Range(0, 4);
                 }
 
-                // Apply the direction to the script and the rotation
                 tileScript.currentDirection = finalDir;
                 newTile.transform.eulerAngles = new Vector3(0, 0, (int)finalDir * -90f);
-                // -------------------------------
 
                 if (x == endCoords.x && y == endCoords.y)
                 {
-                    // Find the child and turn it on
                     Transform goal = newTile.transform.Find("GoalIndicator");
                     if (goal != null) goal.gameObject.SetActive(true);
                 }
 
-                // 10% chance to be a Spike trap, excluding Start and End tiles
                 if (Random.value < hazardChance && !IsStartOrEnd(x, y))
                 {
                     newTile.GetComponent<TileProperty>().SetType(TileProperty.TileType.Spike);
