@@ -106,6 +106,7 @@ public class GridManager : MonoBehaviour
     {
         foreach (TileRotation tile in allTiles)
         {
+            // FIX: If it is a Start or End tile, DO NOT touch its visuals or color!
             if (IsStartOrEnd(tile.gridX, tile.gridY)) continue;
 
             bool isPath = path.Contains(tile);
@@ -192,35 +193,39 @@ public class GridManager : MonoBehaviour
 
                 TileRotation tileScript = newTile.GetComponent<TileRotation>();
 
+                // --- MOVE THESE TO THE TOP OF THE LOOP ---
+                tileScript.gridX = x;
+                tileScript.gridY = y;
+                allTiles[x, y] = tileScript;
+                // ----------------------------------------
+
                 TileRotation.Direction finalDir;
 
                 if (x == startCoords.x && y == startCoords.y)
                 {
-                    // Use our special safe logic for the start tile
                     finalDir = GetValidStartDirection(x, y);
                 }
                 else
                 {
-                    // Use the standard 0-3 random for everything else
                     finalDir = (TileRotation.Direction)Random.Range(0, 4);
                 }
 
-                // Apply the direction to the script and the rotation
                 tileScript.currentDirection = finalDir;
                 newTile.transform.eulerAngles = new Vector3(0, 0, (int)finalDir * -90f);
-                // -------------------------------
 
+                // Turn on Goal Indicator if it's the end coordinate
                 if (x == endCoords.x && y == endCoords.y)
                 {
-                    // Find the child and turn "GoalIndicator" on
                     Transform goal = newTile.transform.Find("GoalIndicator");
-                    if (goal != null) goal.gameObject.SetActive(true);
+                    if (goal != null)
+                    {
+                        goal.gameObject.SetActive(true);
+                    }
                 }
 
-                // Example for randomizing all types in GridManager
+                // Hazard randomization block
                 if (Random.value < hazardChance && !IsStartOrEnd(x, y))
                 {
-                    // Picks a random hazard from the Enum (skipping 'Normal' at index 0)
                     int randomHazard = Random.Range(1, System.Enum.GetValues(typeof(TileProperty.TileType)).Length);
                     newTile.GetComponent<TileProperty>().SetType((TileProperty.TileType)randomHazard);
 
@@ -240,9 +245,7 @@ public class GridManager : MonoBehaviour
                     }
                 }
 
-                tileScript.gridX = x;
-                tileScript.gridY = y;
-                allTiles[x, y] = tileScript;
+                // (Note: Removed old tileScript.gridX/Y lines from down here)
             }
         }
     }
