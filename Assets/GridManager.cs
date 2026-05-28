@@ -42,7 +42,7 @@ public class GridManager : MonoBehaviour
             }
 
             pathList.Add(currentTile);
-            currentPathWorldPositions.Add(currentTile.transform.position);
+            currentPathWorldPositions.Add(new Vector3(currentTile.transform.position.x, currentTile.transform.position.y, -1f));
 
             if (currentPos == endCoords)
             {
@@ -132,7 +132,6 @@ public class GridManager : MonoBehaviour
 
         Camera.main.orthographicSize = (height / 2f) + 1f;
 
-        // Force the enemy spawner to reset its clock now that path coordinates exist
         EnemySpawner spawner = FindObjectOfType<EnemySpawner>();
         if (spawner != null)
         {

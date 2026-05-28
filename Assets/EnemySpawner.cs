@@ -57,21 +57,18 @@ public class EnemySpawner : MonoBehaviour
     {
         if (gridManager != null && gridManager.allTiles != null)
         {
-            // 1. Get the exact random start coordinates chosen by the GridManager
             int startX = gridManager.startCoords.x;
             int startY = gridManager.startCoords.y;
 
-            // 2. Extract the actual Tile object from the grid array
             TileRotation startTile = gridManager.allTiles[startX, startY];
 
             if (startTile != null && enemyTypes.Count > 0)
             {
                 EnemyData randomType = enemyTypes[Random.Range(0, enemyTypes.Count)];
 
-                // 3. Match the tile's exact visual world position precisely
                 Vector3 spawnPosition = startTile.transform.position;
+                spawnPosition.z = -1f;
 
-                // 4. Instantiation
                 GameObject enemy = Instantiate(enemyBasePrefab, spawnPosition, Quaternion.identity);
 
                 if (randomType.visualPrefab != null)
@@ -83,7 +80,7 @@ public class EnemySpawner : MonoBehaviour
                     SpriteRenderer sr = visual.GetComponent<SpriteRenderer>();
                     if (sr != null)
                     {
-                        sr.sortingOrder = 50; // Lock rendering priority over tiles
+                        sr.sortingOrder = 50;
                     }
                 }
 
