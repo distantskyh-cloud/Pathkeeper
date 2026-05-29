@@ -10,12 +10,20 @@ public class EnemySpawner : MonoBehaviour
     void Start()
     {
         gridManager = FindObjectOfType<GridManager>();
+
+        if (gridManager == null)
+        {
+            Debug.LogError("[SPAWNER ERROR] Could not find GridManager in the scene! Make sure it exists.");
+        }
+        else
+        {
+            Debug.Log("[SPAWNER INITIALIZED] Successfully linked to GridManager.");
+        }
     }
 
     void Update()
     {
         timer += Time.deltaTime;
-
         if (timer >= spawnInterval)
         {
             SpawnEnemy();
@@ -25,10 +33,40 @@ public class EnemySpawner : MonoBehaviour
 
     void SpawnEnemy()
     {
-        if (gridManager.currentPathWorldPositions.Count > 0)
+        if (gridManager == null)
         {
-            GameObject enemy = Instantiate(enemyPrefab, gridManager.currentPathWorldPositions[0], Quaternion.identity);
-            enemy.GetComponent<EnemyPathFinding>().SetPath(gridManager.currentPathWorldPositions);
+            Debug.LogWarning("[SPAWNER SKIP] Cannot spawn enemy because GridManager is null.");
+            return;
+        }
+
+        if (gridManager.currentPathWorldPositions != null && gridManager.currentPathWorldPositions.Count > 0)
+        {
+            Vector3 spawnPos = gridManager.currentPathWorldPositions[0];
+
+            // 1. Instantiate the object
+            GameObject enemy = Instantiate(enemyPrefab, spawnPos, Quaternion.identity);
+
+            // 2. Select a random class
+            Enemy.EnemyClass randomClass = (Enemy.EnemyClass)Random.Range(0, System.Enum.GetValues(typeof(Enemy.EnemyClass)).Length);
+
+            // 3. Setup and link scripts safely
+            Enemy enemyScript = enemy.GetComponent<Enemy>();
+            if (enemyScript == null) enemyScript = enemy.AddComponent<Enemy>();
+
+            EnemyPathFinding movementScript = enemy.GetComponent<EnemyPathFinding>();
+            if (movementScript == null) movementScript = enemy.AddComponent<EnemyPathFinding>();
+
+            // 4. Initialize parameters
+            enemyScript.InitializeEnemy(randomClass);
+            movementScript.SetPath(gridManager.currentPathWorldPositions, randomClass);
+
+            // --- TRACKING DEBUG LOG ---
+            Debug.Log($"[SPAWNER SUCCESS] Spawned {randomClass} at world coordinates: {spawnPos}. Path points count: {gridManager.currentPathWorldPositions.Count}");
+        }
+        else
+        {
+            // This will trigger if your path layout is broken or hasn't updated its list vectors yet
+            Debug.LogWarning($"[SPAWNER WARNING] Cannot spawn enemy. 'currentPathWorldPositions' is either null or empty! Count: {(gridManager.currentPathWorldPositions != null ? gridManager.currentPathWorldPositions.Count : -1)}");
         }
     }
 }

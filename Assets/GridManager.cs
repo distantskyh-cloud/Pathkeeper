@@ -96,6 +96,7 @@ public class GridManager : MonoBehaviour
 
         if (goalReached) Debug.Log("Path to Goal is VALID!");
         else Debug.Log("Path is incomplete.");
+
     }
 
     Vector2Int GetNextCoords(Vector2Int pos, TileRotation.Direction dir)
@@ -111,11 +112,26 @@ public class GridManager : MonoBehaviour
     {
         foreach (TileRotation tile in allTiles)
         {
-            // FIX: If it is a Start or End tile, DO NOT touch its visuals or color!
+            // 1. If it's the start or end, do not alter its visuals/colors at all!
             if (IsStartOrEnd(tile.gridX, tile.gridY)) continue;
 
-            bool isPath = path.Contains(tile);
-            tile.GetComponent<TileProperty>().RefreshVisuals(isPath);
+            TileProperty tp = tile.GetComponent<TileProperty>();
+            if (tp != null)
+            {
+                bool isPath = path.Contains(tile);
+
+                // 2. ONLY color it yellow if it is part of the path AND it's a Normal tile.
+                // This ensures Spike, Burn, Slow, etc. keep their unique hazard colors!
+                if (isPath && tp.type == TileProperty.TileType.Normal)
+                {
+                    tile.GetComponent<SpriteRenderer>().color = Color.yellow;
+                }
+                else
+                {
+                    // Revert non-path tiles back to their base colors
+                    tp.RefreshVisuals(false);
+                }
+            }
         }
     }
 

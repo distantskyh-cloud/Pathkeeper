@@ -9,7 +9,7 @@ public class SelectionManager : MonoBehaviour
     {
         if (Input.GetMouseButtonDown(0)) // Left Click
         {
-            HandleSelection();
+            // HandleSelection();
         }
     }
 
