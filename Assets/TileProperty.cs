@@ -36,15 +36,32 @@ public class TileProperty : MonoBehaviour
             case TileType.Burn: hex = "#FF8C00"; break; // Orange
             case TileType.Freeze: hex = "#A5F2F3"; break; // Ice Blue
             case TileType.Pitfall: hex = "#000000"; break; // Black
-            case TileType.Poison: hex = "#228B22"; break; // Forest Green (Differs from Start)
+            case TileType.Poison: hex = "#228B22"; break; // Forest Green
             case TileType.Static: hex = "#FFFF00"; break; // Yellow
-            case TileType.Bleed: hex = "#800000"; break; // Maroon (Differs from End)
+            case TileType.Bleed: hex = "#800000"; break; // Maroon
             case TileType.Curse: hex = "#4B0082"; break; // Indigo/Deep Purple
         }
 
         if (ColorUtility.TryParseHtmlString(hex, out Color customColor))
         {
             sr.color = customColor;
+        }
+
+        // --- SAFETY CORRECTION USING TILEROTATION ---
+        TileRotation myRotationScript = GetComponent<TileRotation>();
+        GridManager grid = FindObjectOfType<GridManager>();
+
+        if (myRotationScript != null && grid != null)
+        {
+            // Compare TileRotation's grid coordinates to the GridManager's end coordinates
+            if (grid.endCoords.x == myRotationScript.gridX && grid.endCoords.y == myRotationScript.gridY)
+            {
+                Transform goal = transform.Find("GoalIndicator");
+                if (goal != null)
+                {
+                    goal.gameObject.SetActive(true);
+                }
+            }
         }
     }
 
