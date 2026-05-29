@@ -46,10 +46,13 @@ public class GridManager : MonoBehaviour
 
     public Vector2Int startCoords = new Vector2Int(0, 0);
     public Vector2Int endCoords = new Vector2Int(4, 4);
+    public List<Vector3> currentPathWorldPositions = new List<Vector3>();
 
     public void TracePath()
     {
+
         List<TileRotation> pathList = new List<TileRotation>();
+        currentPathWorldPositions.Clear();
         Vector2Int currentPos = startCoords;
         bool goalReached = false;
 
@@ -64,6 +67,7 @@ public class GridManager : MonoBehaviour
             }
 
             TileRotation currentTile = allTiles[currentPos.x, currentPos.y];
+           
 
             // 2. Check for Infinite Loops
             if (pathList.Contains(currentTile))
@@ -73,6 +77,7 @@ public class GridManager : MonoBehaviour
             }
 
             pathList.Add(currentTile);
+            currentPathWorldPositions.Add(currentTile.transform.position);
 
             // 3. Check if we reached the Goal
             if (currentPos == endCoords)
