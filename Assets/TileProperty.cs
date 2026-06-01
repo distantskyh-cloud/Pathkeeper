@@ -24,9 +24,21 @@ public class TileProperty : MonoBehaviour
         ApplyHexColor();
     }
 
+    public void SetTileColor(Color customColor)
+    {
+        Renderer r = GetComponent<Renderer>();
+        if (r is SpriteRenderer sr)
+        {
+            sr.color = customColor;
+        }
+        else if (r != null)
+        {
+            r.material.color = customColor;
+        }
+    }
+
     void ApplyHexColor()
     {
-        SpriteRenderer sr = GetComponent<SpriteRenderer>();
         string hex = "#FFFFFF"; // Default White
 
         switch (type)
@@ -44,7 +56,7 @@ public class TileProperty : MonoBehaviour
 
         if (ColorUtility.TryParseHtmlString(hex, out Color customColor))
         {
-            sr.color = customColor;
+            SetTileColor(customColor);
         }
 
         // --- SAFETY CORRECTION USING TILEROTATION ---
@@ -68,10 +80,9 @@ public class TileProperty : MonoBehaviour
     // Call this from GridManager's HighlightPath to maintain the hazard color
     public void RefreshVisuals(bool isHighlighted)
     {
-        SpriteRenderer sr = GetComponent<SpriteRenderer>();
         if (isHighlighted)
         {
-            sr.color = Color.yellow;
+            SetTileColor(Color.yellow);
         }
         else
         {

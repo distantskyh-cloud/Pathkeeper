@@ -124,7 +124,7 @@ public class GridManager : MonoBehaviour
                 // This ensures Spike, Burn, Slow, etc. keep their unique hazard colors!
                 if (isPath && tp.type == TileProperty.TileType.Normal)
                 {
-                    tile.GetComponent<SpriteRenderer>().color = Color.yellow;
+                    tp.SetTileColor(Color.yellow);
                 }
                 else
                 {
@@ -224,8 +224,8 @@ public class GridManager : MonoBehaviour
         GenerateGrid();
 
         // Visual indicator so we can see the new Start/End
-        allTiles[startCoords.x, startCoords.y].GetComponent<SpriteRenderer>().color = Color.green;
-        allTiles[endCoords.x, endCoords.y].GetComponent<SpriteRenderer>().color = Color.red;
+        allTiles[startCoords.x, startCoords.y].GetComponent<TileProperty>().SetTileColor(Color.green);
+        allTiles[endCoords.x, endCoords.y].GetComponent<TileProperty>().SetTileColor(Color.red);
 
         TracePath();
 
