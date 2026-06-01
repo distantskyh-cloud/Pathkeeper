@@ -41,9 +41,10 @@ public class EnemySpawner : MonoBehaviour
 
         if (gridManager.currentPathWorldPositions != null && gridManager.currentPathWorldPositions.Count > 0)
         {
+            // This is the line that was missing!
             Vector3 spawnPos = gridManager.currentPathWorldPositions[0];
 
-            // 1. Instantiate the object
+            // 1. Instantiate the object safely at the spawn position
             GameObject enemy = Instantiate(enemyPrefab, spawnPos, Quaternion.identity);
 
             // 2. Select a random class
@@ -56,16 +57,15 @@ public class EnemySpawner : MonoBehaviour
             EnemyPathFinding movementScript = enemy.GetComponent<EnemyPathFinding>();
             if (movementScript == null) movementScript = enemy.AddComponent<EnemyPathFinding>();
 
-            // 4. Initialize parameters
+            // 4. Initialize parameters (Enemy FIRST, then Pathfinding)
             enemyScript.InitializeEnemy(randomClass);
-            movementScript.SetPath(gridManager.currentPathWorldPositions, randomClass);
+            movementScript.SetPath(gridManager.currentPathWorldPositions);
 
             // --- TRACKING DEBUG LOG ---
             Debug.Log($"[SPAWNER SUCCESS] Spawned {randomClass} at world coordinates: {spawnPos}. Path points count: {gridManager.currentPathWorldPositions.Count}");
         }
         else
         {
-            // This will trigger if your path layout is broken or hasn't updated its list vectors yet
             Debug.LogWarning($"[SPAWNER WARNING] Cannot spawn enemy. 'currentPathWorldPositions' is either null or empty! Count: {(gridManager.currentPathWorldPositions != null ? gridManager.currentPathWorldPositions.Count : -1)}");
         }
     }
