@@ -190,19 +190,16 @@ public class GridManager : MonoBehaviour
         TileProperty.TileType typeA = propA.type;
         TileProperty.HazardData dataA = propA.currentData;
         TileRotation.Direction dirA = scriptA.currentDirection;
-        Vector3 rotA = scriptA.transform.eulerAngles;
 
         // 3. OVERWRITE A WITH B
         propA.SetType(propB.type); // This updates Color
         propA.currentData = propB.currentData;
-        scriptA.currentDirection = scriptB.currentDirection;
-        scriptA.transform.eulerAngles = scriptB.transform.eulerAngles;
+        scriptA.SetDirection(scriptB.currentDirection);
 
         // 4. OVERWRITE B WITH A (using backups)
         propB.SetType(typeA); // This updates Color
         propB.currentData = dataA;
-        scriptB.currentDirection = dirA;
-        scriptB.transform.eulerAngles = rotA;
+        scriptB.SetDirection(dirA);
 
         // 5. FORCE GRID RE-CALCULATION
         TracePath();
@@ -264,8 +261,7 @@ public class GridManager : MonoBehaviour
                     finalDir = (TileRotation.Direction)Random.Range(0, 4);
                 }
 
-                tileScript.currentDirection = finalDir;
-                newTile.transform.eulerAngles = new Vector3(0, 0, (int)finalDir * -90f);
+                tileScript.SetDirection(finalDir);
 
                 // Turn on Goal Indicator if it's the end coordinate
                 if (x == endCoords.x && y == endCoords.y)
