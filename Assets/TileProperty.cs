@@ -13,6 +13,41 @@ public class TileProperty : MonoBehaviour
 
     public HazardData currentData;
 
+    [Header("Visual Variations")]
+    public Material[] randomMaterials;
+
+    [System.Serializable]
+    public struct HazardVisual
+    {
+        public TileType type;
+        public Sprite overlayImage;
+        public Material overlayMaterial;
+        public GameObject vfxPrefab;
+    }
+
+    [Header("Hazard Overlays")]
+    public Renderer hazardOverlayRenderer;
+    public HazardVisual[] hazardVisuals;
+    
+    private GameObject currentVFX;
+
+    void Awake()
+    {
+        // Randomly assign a material base if we have any setup
+        if (randomMaterials != null && randomMaterials.Length > 0)
+        {
+            Renderer r = GetComponent<Renderer>();
+            if (r != null)
+            {
+                int randomIndex = Random.Range(0, randomMaterials.Length);
+                r.sharedMaterial = randomMaterials[randomIndex];
+            }
+        }
+
+        // Initialize the default visual state (this hides the Quad overlay by default)
+        ApplyHazardVisuals();
+    }
+
     // Tile types
     public enum TileType { Normal, Spike, Slow, Burn, Freeze, Pitfall, Poison, Static, Bleed, Curse }
     public TileType type = TileType.Normal;
@@ -21,7 +56,7 @@ public class TileProperty : MonoBehaviour
     public void SetType(TileType newType)
     {
         type = newType;
-        ApplyHexColor();
+        ApplyHazardVisuals();
     }
 
     public void SetTileColor(Color customColor)
@@ -33,30 +68,64 @@ public class TileProperty : MonoBehaviour
         }
         else if (r != null)
         {
-            r.material.color = customColor;
+            MaterialPropertyBlock block = new MaterialPropertyBlock();
+            r.GetPropertyBlock(block);
+            block.SetColor("_Color", customColor);      // Built-in Pipeline
+            block.SetColor("_BaseColor", customColor);  // URP Pipeline safety
+            r.SetPropertyBlock(block);
         }
     }
 
-    void ApplyHexColor()
+    void ApplyHazardVisuals()
     {
-        string hex = "#FFFFFF"; // Default White
+        // 1. Reset base rock color to pure white
+        SetTileColor(Color.white);
 
-        switch (type)
+        // 2. Hide existing overlay by default
+        if (hazardOverlayRenderer != null)
         {
-            case TileType.Spike: hex = "#808080"; break; // Gray
-            case TileType.Slow: hex = "#5C4033"; break; // Brown
-            case TileType.Burn: hex = "#FF8C00"; break; // Orange
-            case TileType.Freeze: hex = "#A5F2F3"; break; // Ice Blue
-            case TileType.Pitfall: hex = "#000000"; break; // Black
-            case TileType.Poison: hex = "#228B22"; break; // Forest Green
-            case TileType.Static: hex = "#FFFF00"; break; // Yellow
-            case TileType.Bleed: hex = "#800000"; break; // Maroon
-            case TileType.Curse: hex = "#4B0082"; break; // Indigo/Deep Purple
+            hazardOverlayRenderer.gameObject.SetActive(false);
         }
 
-        if (ColorUtility.TryParseHtmlString(hex, out Color customColor))
+        // 3. Clear existing VFX
+        if (currentVFX != null)
         {
-            SetTileColor(customColor);
+            Destroy(currentVFX);
+            currentVFX = null;
+        }
+
+        // 4. Find and apply the matching overlay and VFX
+        if (hazardVisuals != null)
+        {
+            foreach (HazardVisual visual in hazardVisuals)
+            {
+                if (visual.type == type)
+                {
+                    if (hazardOverlayRenderer != null)
+                    {
+                        if (hazardOverlayRenderer is SpriteRenderer sr && visual.overlayImage != null)
+                        {
+                            sr.sprite = visual.overlayImage;
+                            hazardOverlayRenderer.gameObject.SetActive(true);
+                        }
+                        else if (hazardOverlayRenderer is MeshRenderer mr && visual.overlayMaterial != null)
+                        {
+                            mr.material = visual.overlayMaterial;
+                            hazardOverlayRenderer.gameObject.SetActive(true);
+                        }
+                    }
+
+                    if (visual.vfxPrefab != null)
+                    {
+                        // Spawn the VFX as a child of this tile
+                        currentVFX = Instantiate(visual.vfxPrefab, transform);
+                        // Force it to center X/Y perfectly, but keep the Prefab's saved Z offset so it doesn't get buried!
+                        currentVFX.transform.localPosition = new Vector3(0, 0, visual.vfxPrefab.transform.position.z);
+                    }
+
+                    break;
+                }
+            }
         }
 
         // --- SAFETY CORRECTION USING TILEROTATION ---
@@ -77,16 +146,52 @@ public class TileProperty : MonoBehaviour
         }
     }
 
-    // Call this from GridManager's HighlightPath to maintain the hazard color
+    // Call this from GridManager's HighlightPath
     public void RefreshVisuals(bool isHighlighted)
     {
         if (isHighlighted)
         {
+            // Tint the base rock yellow to show the path
             SetTileColor(Color.yellow);
         }
         else
         {
-            ApplyHexColor(); // Reverts to the hex code assigned to the type
+            // Reset to normal base rock color (without destroying and recreating VFX!)
+            SetTileColor(Color.white); 
         }
     }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        // Auto-populate the hazardVisuals array to save you from manually clicking '+' 10 times!
+        int enumCount = System.Enum.GetValues(typeof(TileType)).Length;
+        if (hazardVisuals == null || hazardVisuals.Length != enumCount)
+        {
+            TileType[] allTypes = (TileType[])System.Enum.GetValues(typeof(TileType));
+            HazardVisual[] newVisuals = new HazardVisual[enumCount];
+            
+            for (int i = 0; i < enumCount; i++)
+            {
+                newVisuals[i].type = allTypes[i];
+                
+                // Preserve any images, materials, or VFX you already assigned
+                if (hazardVisuals != null)
+                {
+                    foreach (var oldVisual in hazardVisuals)
+                    {
+                        if (oldVisual.type == allTypes[i])
+                        {
+                            newVisuals[i].overlayImage = oldVisual.overlayImage;
+                            newVisuals[i].overlayMaterial = oldVisual.overlayMaterial;
+                            newVisuals[i].vfxPrefab = oldVisual.vfxPrefab;
+                            break;
+                        }
+                    }
+                }
+            }
+            hazardVisuals = newVisuals;
+        }
+    }
+#endif
 }
