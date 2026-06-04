@@ -1,8 +1,9 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class Enemy : MonoBehaviour
 {
-    public enum EnemyClass { Swordsman, Tanker, Rogue }
+    // Extended to include the Tier-2 Support Specialists and the Mid-Boss Champion
+    public enum EnemyClass { Swordsman, Tanker, Rogue, Priest, Supporter, Paladin }
     public EnemyClass currentClass;
 
     [Header("Current Live Stats")]
@@ -17,6 +18,9 @@ public class Enemy : MonoBehaviour
 
     private EnemyPathFinding pathfindingScript;
 
+    // Paladin unique runtime check to ensure his "Lay on Hands" mechanic only activates once
+    private bool hasUsedPaladinHeal = false;
+
     void Awake()
     {
         pathfindingScript = GetComponent<EnemyPathFinding>();
@@ -28,24 +32,50 @@ public class Enemy : MonoBehaviour
         SpriteRenderer sr = GetComponent<SpriteRenderer>();
         if (sr == null) sr = GetComponentInChildren<SpriteRenderer>();
 
+        // Set native stats based on the adventurer's class archetype
         switch (currentClass)
         {
             case EnemyClass.Swordsman:
                 maxHP = 100f; armorPercent = 0f; baseSpeed = 1.0f;
-                SetPlaceholderVisuals(sr, "#0000FF", new Vector3(1f, 1f, 1f));
+                SetPlaceholderVisuals(sr, "#0000FF", new Vector3(1f, 1f, 1f)); // Blue
                 break;
             case EnemyClass.Tanker:
                 maxHP = 200f; armorPercent = 0.50f; baseSpeed = 0.6f;
-                SetPlaceholderVisuals(sr, "#4A4A4A", new Vector3(1.4f, 1.4f, 1f));
+                SetPlaceholderVisuals(sr, "#4A4A4A", new Vector3(1.4f, 1.4f, 1f)); // Dark Grey
                 break;
             case EnemyClass.Rogue:
                 maxHP = 60f; armorPercent = 0f; baseSpeed = 1.8f;
-                SetPlaceholderVisuals(sr, "#FFD700", new Vector3(0.7f, 0.7f, 1f));
+                SetPlaceholderVisuals(sr, "#FFD700", new Vector3(0.7f, 0.7f, 1f)); // Gold/Yellow
+                break;
+            case EnemyClass.Priest:
+                maxHP = 75f; armorPercent = 0f; baseSpeed = 0.9f;
+                SetPlaceholderVisuals(sr, "#00FFCC", new Vector3(0.9f, 0.9f, 1f)); // Teal
+                break;
+            case EnemyClass.Supporter:
+                maxHP = 80f; armorPercent = 0.05f; baseSpeed = 1.0f;
+                SetPlaceholderVisuals(sr, "#FF00FF", new Vector3(0.9f, 0.9f, 1f)); // Magenta/Pink
+                break;
+            case EnemyClass.Paladin:
+                maxHP = 350f; armorPercent = 0.40f; baseSpeed = 0.7f;
+                SetPlaceholderVisuals(sr, "#FFFFCC", new Vector3(1.5f, 1.5f, 1f)); // Big Golden-White
                 break;
         }
         currentHP = maxHP;
 
-        // FIX: Ensure the pathfinding script gets the speed immediately upon initialization
+        // HOOK TO GAMEMANAGER: Scales max and current health based on selected difficulty
+        if (GameManager.Instance != null)
+        {
+            maxHP *= GameManager.Instance.enemyHealthMultiplier;
+            currentHP = maxHP;
+        }
+
+        // HOOK TO GAMEMANAGER: Scales native speed based on selected difficulty
+        if (GameManager.Instance != null)
+        {
+            baseSpeed *= GameManager.Instance.enemySpeedMultiplier;
+        }
+
+        // Ensure the pathfinding script gets the speed immediately upon initialization
         if (pathfindingScript == null) pathfindingScript = GetComponent<EnemyPathFinding>();
         if (pathfindingScript != null) pathfindingScript.speed = baseSpeed;
     }
@@ -80,15 +110,10 @@ public class Enemy : MonoBehaviour
     {
         if (hazard.damage > 0) TakeDamage(hazard.damage, isStatusEffect: false);
 
-        // 1. EMERGENCY BASE SPEED FALLBACK: If baseSpeed isn't initialized yet, recover it safely
+        // 1. EMERGENCY BASE SPEED FALLBACK: If baseSpeed isn't initialized yet, recover it safely with difficulty scale included
         if (baseSpeed <= 0)
         {
-            switch (currentClass)
-            {
-                case EnemyClass.Swordsman: baseSpeed = 1.0f; break;
-                case EnemyClass.Tanker: baseSpeed = 0.6f; break;
-                case EnemyClass.Rogue: baseSpeed = 1.8f; break;
-            }
+            AssignBaseSpeedByClass();
         }
 
         // 2. TILE HAZARD SAFETY GUARD: 
@@ -124,23 +149,39 @@ public class Enemy : MonoBehaviour
         }
     }
 
-    void ResetStatusEffects()
+    public void ResetStatusEffects()
     {
         dotDamagePerSecond = 0;
         isEffectInfinite = false;
 
-        // Ensure baseSpeed is valid before resetting
+        // Ensure baseSpeed is valid before resetting, applying difficulty multiplier automatically
         if (baseSpeed <= 0)
         {
-            switch (currentClass)
-            {
-                case EnemyClass.Swordsman: baseSpeed = 1.0f; break;
-                case EnemyClass.Tanker: baseSpeed = 0.6f; break;
-                case EnemyClass.Rogue: baseSpeed = 1.8f; break;
-            }
+            AssignBaseSpeedByClass();
         }
 
         if (pathfindingScript != null) pathfindingScript.speed = baseSpeed;
+    }
+
+    /// <summary>
+    /// Helper method to ensure fallbacks and initial layout both evaluate the GameManager difficulty speed rules cleanly
+    /// </summary>
+    private void AssignBaseSpeedByClass()
+    {
+        switch (currentClass)
+        {
+            case EnemyClass.Swordsman: baseSpeed = 1.0f; break;
+            case EnemyClass.Tanker: baseSpeed = 0.6f; break;
+            case EnemyClass.Rogue: baseSpeed = 1.8f; break;
+            case EnemyClass.Priest: baseSpeed = 0.9f; break;
+            case EnemyClass.Supporter: baseSpeed = 1.0f; break;
+            case EnemyClass.Paladin: baseSpeed = 0.7f; break;
+        }
+
+        if (GameManager.Instance != null)
+        {
+            baseSpeed *= GameManager.Instance.enemySpeedMultiplier;
+        }
     }
 
     public void TakeDamage(float incomingDamage, bool isStatusEffect)
@@ -150,6 +191,16 @@ public class Enemy : MonoBehaviour
 
         currentHP -= finalDamage;
         Debug.Log($"{gameObject.name} ({currentClass}) HP: {currentHP:F1}/{maxHP}");
+
+        // ⭐ PALADIN MID-BOSS CLEANSE & SELF-HEAL TRIGGER:
+        // Triggers when he drops below or equal to 50% max HP.
+        if (currentClass == EnemyClass.Paladin && !hasUsedPaladinHeal && currentHP <= (maxHP * 0.5f))
+        {
+            hasUsedPaladinHeal = true;
+            currentHP += (maxHP * 0.35f); // Restores 35% of max health
+            ResetStatusEffects();        // Wipes poison, burn, and tile slows instantly!
+            Debug.Log("[MID-BOSS] Paladin activated Holy Cleanse & Heal!");
+        }
 
         if (currentHP <= 0) Destroy(gameObject);
     }
