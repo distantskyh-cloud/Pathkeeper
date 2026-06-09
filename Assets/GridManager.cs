@@ -1,10 +1,20 @@
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 
 public class GridManager : MonoBehaviour
 {
-    public GameObject tilePrefab;
+    [Header("Modular Tile Prefab References")]
+    public GameObject Tile_Normal;
+    public GameObject Tile_Slow;
+    public GameObject Tile_Burn;
+    public GameObject Tile_Freeze;
+    public GameObject Tile_Pitfall;
+    public GameObject Tile_Poison;
+    public GameObject Tile_Static;
+    public GameObject Tile_Bleed; // Handles unified Spike + Bleed payload!
+    public GameObject Tile_Curse;
+
+    [Header("Grid Dimensions")]
     public int width;
     public int height;
 
@@ -12,54 +22,130 @@ public class GridManager : MonoBehaviour
     [Range(0f, 1f)]
     public float hazardChance = 0.2f;
 
-    // Tile effect master settings
-    [Header("Master Hazard Balancer")]
-    // Spikes: High instant damage, no speed change
-    public TileProperty.HazardData spikeStats = new TileProperty.HazardData { damage = 10f, speedMult = 1f, dotDamage = 0f, duration = 0f };
-
-    // Pitfall: The "Delete" button
-    public TileProperty.HazardData pitfallStats = new TileProperty.HazardData { damage = 999f, speedMult = 0f, dotDamage = 0f, duration = 0f };
-
-    // Slow: No damage, cuts speed in half
-    public TileProperty.HazardData slowStats = new TileProperty.HazardData { damage = 0f, speedMult = 0.5f, dotDamage = 0f, duration = 0f };
-
-    // Freeze: Stops unit completely for a moment
-    public TileProperty.HazardData freezeStats = new TileProperty.HazardData { damage = 0f, speedMult = 0f, dotDamage = 0f, duration = 1.5f };
-
-    // Burn: Low instant damage, high DoT for a short time
-    public TileProperty.HazardData burnStats = new TileProperty.HazardData { damage = 5f, speedMult = 1f, dotDamage = 4f, duration = 3f };
-
-    // Poison: No instant damage, but lasts "forever" (-1)
-    public TileProperty.HazardData poisonStats = new TileProperty.HazardData { damage = 0f, speedMult = 1f, dotDamage = 1f, duration = -1f };
-
-    // Static: Slight slow and medium DoT
-    public TileProperty.HazardData staticStats = new TileProperty.HazardData { damage = 2f, speedMult = 0.8f, dotDamage = 2f, duration = 2f };
-
-    // Bleed: No instant damage, but movement-based (Logic handled in Unit script)
-    public TileProperty.HazardData bleedStats = new TileProperty.HazardData { damage = 0f, speedMult = 1f, dotDamage = 3f, duration = 5f };
-
-    // Curse: No damage, but sets a flag for 1.5x damage taken
-    public TileProperty.HazardData curseStats = new TileProperty.HazardData { damage = 0f, speedMult = 1f, dotDamage = 0f, duration = 10f };
-
     // This 2D array stores our tile references
     public TileRotation[,] allTiles;
 
+    [Header("Path Tracking Coordinates")]
     public Vector2Int startCoords = new Vector2Int(0, 0);
     public Vector2Int endCoords = new Vector2Int(4, 4);
     public List<Vector3> currentPathWorldPositions = new List<Vector3>();
 
+    void Start()
+    {
+        allTiles = new TileRotation[width, height];
+
+        // Randomize the Y positions for Start and End points
+        int randomStartY = Random.Range(0, height);
+        int randomEndY = Random.Range(0, height);
+
+        startCoords = new Vector2Int(0, randomStartY);
+        endCoords = new Vector2Int(width - 1, randomEndY); // Works dynamically for any grid width
+
+        GenerateGrid();
+
+        // Apply starting visual highlight identifiers
+        if (allTiles[startCoords.x, startCoords.y] != null)
+            allTiles[startCoords.x, startCoords.y].GetComponent<SpriteRenderer>().color = Color.green;
+
+        if (allTiles[endCoords.x, endCoords.y] != null)
+            allTiles[endCoords.x, endCoords.y].GetComponent<SpriteRenderer>().color = Color.red;
+
+        TracePath();
+
+        // Automatically scale the camera perspective based on the grid height
+        Camera.main.orthographicSize = (height / 2f) + 1f;
+    }
+
+    void GenerateGrid()
+    {
+        float xOffset = (width - 1) / 2f;
+        float yOffset = (height - 1) / 2f;
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                // 1. DETERMINE PREFAB TYPE FIRST BEFORE INSTANTIATING
+                GameObject prefabToSpawn = Tile_Normal;
+
+                // Randomly select a hazard variant if constraints match
+                if (Random.value < hazardChance && !IsStartOrEnd(x, y))
+                {
+                    // Random choice mapping to the updated TileType enum sequence (skipping 'Normal' at 0)
+                    int randomHazard = Random.Range(1, System.Enum.GetValues(typeof(TileProperty.TileType)).Length);
+                    TileProperty.TileType targetType = (TileProperty.TileType)randomHazard;
+
+                    switch (targetType)
+                    {
+                        case TileProperty.TileType.Slow: prefabToSpawn = Tile_Slow; break;
+                        case TileProperty.TileType.Burn: prefabToSpawn = Tile_Burn; break;
+                        case TileProperty.TileType.Freeze: prefabToSpawn = Tile_Freeze; break;
+                        case TileProperty.TileType.Pitfall: prefabToSpawn = Tile_Pitfall; break;
+                        case TileProperty.TileType.Poison: prefabToSpawn = Tile_Poison; break;
+                        case TileProperty.TileType.Static: prefabToSpawn = Tile_Static; break;
+                        case TileProperty.TileType.Bleed: prefabToSpawn = Tile_Bleed; break;
+                        case TileProperty.TileType.Curse: prefabToSpawn = Tile_Curse; break;
+                    }
+                }
+
+                // 2. INSTANTIATE THE CORRECT CHOSEN PREFAB
+                Vector3 spawnPos = new Vector3(x - xOffset, y - yOffset, 0);
+                GameObject newTile = Instantiate(prefabToSpawn, spawnPos, Quaternion.identity);
+                newTile.name = $"Tile_{x}_{y}";
+
+                TileRotation tileScript = newTile.GetComponent<TileRotation>();
+
+                if (tileScript != null)
+                {
+                    // Assign coordinate address tracking values
+                    tileScript.gridX = x;
+                    tileScript.gridY = y;
+                    allTiles[x, y] = tileScript;
+
+                    // Determine and assign orientation rules
+                    TileRotation.Direction finalDir;
+
+                    if (x == startCoords.x && y == startCoords.y)
+                    {
+                        finalDir = GetValidStartDirection(x, y);
+                    }
+                    else if (x == endCoords.x && y == endCoords.y)
+                    {
+                        finalDir = GetValidEndDirection(x, y);
+                    }
+                    else
+                    {
+                        finalDir = (TileRotation.Direction)Random.Range(0, 4);
+                    }
+
+                    tileScript.currentDirection = finalDir;
+                    newTile.transform.eulerAngles = new Vector3(0, 0, (int)finalDir * -90f);
+                }
+
+                // Activate Goal Indicator overlay if it matches the destination node
+                if (x == endCoords.x && y == endCoords.y)
+                {
+                    Transform goal = newTile.transform.Find("GoalIndicator");
+                    if (goal != null)
+                    {
+                        goal.gameObject.SetActive(true);
+                    }
+                }
+            }
+        }
+    }
+
     public void TracePath()
     {
-
         List<TileRotation> pathList = new List<TileRotation>();
         currentPathWorldPositions.Clear();
         Vector2Int currentPos = startCoords;
         bool goalReached = false;
 
-        // We limit the loop to the total number of tiles to prevent infinite crashes
+        // Limit loop iterations to prevent infinite crashes
         for (int i = 0; i < (width * height); i++)
         {
-            // 1. Check if current position is within grid boundaries
+            // 1. Boundary integrity safety check
             if (currentPos.x < 0 || currentPos.x >= width || currentPos.y < 0 || currentPos.y >= height)
             {
                 Debug.Log("Path went out of bounds!");
@@ -67,9 +153,8 @@ public class GridManager : MonoBehaviour
             }
 
             TileRotation currentTile = allTiles[currentPos.x, currentPos.y];
-           
 
-            // 2. Check for Infinite Loops
+            // 2. Loop repetition catch
             if (pathList.Contains(currentTile))
             {
                 Debug.Log("Infinite Loop detected!");
@@ -79,16 +164,15 @@ public class GridManager : MonoBehaviour
             pathList.Add(currentTile);
             currentPathWorldPositions.Add(currentTile.transform.position);
 
-            // 3. Check if we reached the Goal
+            // 3. Goal objective check
             if (currentPos == endCoords)
             {
                 goalReached = true;
                 break;
             }
 
-            // 4. Move to the next coordinate based on the tile's currentDirection
+            // 4. Update coordinates based on exit vectors
             currentPos = GetNextCoords(currentPos, currentTile.currentDirection);
-
             Debug.Log($"Tracer at {currentPos} is moving {currentTile.currentDirection}");
         }
 
@@ -96,7 +180,6 @@ public class GridManager : MonoBehaviour
 
         if (goalReached) Debug.Log("Path to Goal is VALID!");
         else Debug.Log("Path is incomplete.");
-
     }
 
     Vector2Int GetNextCoords(Vector2Int pos, TileRotation.Direction dir)
@@ -112,195 +195,90 @@ public class GridManager : MonoBehaviour
     {
         foreach (TileRotation tile in allTiles)
         {
-            // 1. If it's the start or end, do not alter its visuals/colors at all!
-            if (IsStartOrEnd(tile.gridX, tile.gridY)) continue;
+            if (tile == null || IsStartOrEnd(tile.gridX, tile.gridY)) continue;
 
             TileProperty tp = tile.GetComponent<TileProperty>();
             if (tp != null)
             {
                 bool isPath = path.Contains(tile);
 
-                // 2. ONLY color it yellow if it is part of the path AND it's a Normal tile.
-                // This ensures Spike, Burn, Slow, etc. keep their unique hazard colors!
+                // ONLY change color to yellow if it is a running path element AND a Normal tile type.
                 if (isPath && tp.type == TileProperty.TileType.Normal)
                 {
                     tile.GetComponent<SpriteRenderer>().color = Color.yellow;
                 }
                 else
                 {
-                    // Revert non-path tiles back to their base colors
+                    // Revert non-path or hazard tiles cleanly back to native colors
                     tp.RefreshVisuals(false);
                 }
             }
         }
     }
 
+    public void SwapTiles(TileRotation scriptA, TileRotation scriptB)
+    {
+        // 1. Safety Gate Check
+        if (scriptA == null || scriptB == null) return;
+        if (IsStartOrEnd(scriptA.gridX, scriptA.gridY) || IsStartOrEnd(scriptB.gridX, scriptB.gridY)) return;
+
+        // Cache original placement keys
+        int ax = scriptA.gridX;
+        int ay = scriptA.gridY;
+        int bx = scriptB.gridX;
+        int by = scriptB.gridY;
+
+        // 2. Swap Physical World Positions
+        Vector3 tempPos = scriptA.transform.position;
+        scriptA.transform.position = scriptB.transform.position;
+        scriptB.transform.position = tempPos;
+
+        // 3. Swap Internal Address Memory Variables
+        scriptA.gridX = bx;
+        scriptA.gridY = by;
+        scriptB.gridX = ax;
+        scriptB.gridY = ay;
+
+        // 4. Update the Master Matrix Pointer Map
+        allTiles[ax, ay] = scriptB;
+        allTiles[bx, by] = scriptA;
+
+        // 5. Update Hierarchy Names for Clearer Inspector Debugging
+        scriptA.name = $"Tile_{bx}_{by}";
+        scriptB.name = $"Tile_{ax}_{ay}";
+
+        // 6. Force Dynamic Grid Direction Re-calculation
+        TracePath();
+
+        Debug.Log($"[GRID SUCCESS] Physically swapped {scriptA.name} with {scriptB.name}");
+    }
+
     TileRotation.Direction GetValidStartDirection(int x, int y)
     {
-        // Create a list of all 4 possible directions
         List<TileRotation.Direction> validDirections = new List<TileRotation.Direction>
-    {
-        TileRotation.Direction.Up,
-        TileRotation.Direction.Right,
-        TileRotation.Direction.Down,
-        TileRotation.Direction.Left
-    };
+        {
+            TileRotation.Direction.Up,
+            TileRotation.Direction.Right,
+            TileRotation.Direction.Down,
+            TileRotation.Direction.Left
+        };
 
-        // 1. Always remove Left (since x is 0)
         validDirections.Remove(TileRotation.Direction.Left);
 
-        // 2. If at the very bottom, remove Down
-        if (y == 0)
-            validDirections.Remove(TileRotation.Direction.Down);
+        if (y == 0) validDirections.Remove(TileRotation.Direction.Down);
+        if (y == height - 1) validDirections.Remove(TileRotation.Direction.Up);
 
-        // 3. If at the very top, remove Up
-        if (y == height - 1)
-            validDirections.Remove(TileRotation.Direction.Up);
-
-        // 4. Pick a random direction from the remaining safe options
         int randomIndex = Random.Range(0, validDirections.Count);
         return validDirections[randomIndex];
     }
 
     TileRotation.Direction GetValidEndDirection(int x, int y)
     {
-        // For the End Tile, we usually want it pointing 'Off-screen' to the Right
         return TileRotation.Direction.Right;
-
-        // If you want it to be random but safe:
-        // Follow the same List.Remove logic as the Start tile, 
-        // but remove 'Right' instead of 'Left'.
     }
 
     bool IsStartOrEnd(int x, int y)
     {
         return (x == startCoords.x && y == startCoords.y) || (x == endCoords.x && y == endCoords.y);
-    }
-
-    public void SwapTiles(TileRotation scriptA, TileRotation scriptB)
-    {
-        // 1. Safety Gate
-        if (scriptA == null || scriptB == null) return;
-        if (IsStartOrEnd(scriptA.gridX, scriptA.gridY) || IsStartOrEnd(scriptB.gridX, scriptB.gridY)) return;
-
-        TileProperty propA = scriptA.GetComponent<TileProperty>();
-        TileProperty propB = scriptB.GetComponent<TileProperty>();
-
-        // 2. BACKUP DATA FROM A
-        TileProperty.TileType typeA = propA.type;
-        TileProperty.HazardData dataA = propA.currentData;
-        TileRotation.Direction dirA = scriptA.currentDirection;
-        Vector3 rotA = scriptA.transform.eulerAngles;
-
-        // 3. OVERWRITE A WITH B
-        propA.SetType(propB.type); // This updates Color
-        propA.currentData = propB.currentData;
-        scriptA.currentDirection = scriptB.currentDirection;
-        scriptA.transform.eulerAngles = scriptB.transform.eulerAngles;
-
-        // 4. OVERWRITE B WITH A (using backups)
-        propB.SetType(typeA); // This updates Color
-        propB.currentData = dataA;
-        scriptB.currentDirection = dirA;
-        scriptB.transform.eulerAngles = rotA;
-
-        // 5. FORCE GRID RE-CALCULATION
-        TracePath();
-
-        Debug.Log($"Swapped {scriptA.gridX},{scriptA.gridY} with {scriptB.gridX},{scriptB.gridY}");
-    }
-
-    void Start()
-    {
-        allTiles = new TileRotation[width, height];
-
-        // Randomize the Y positions
-        int randomStartY = Random.Range(0, height);
-        int randomEndY = Random.Range(0, height);
-
-        startCoords = new Vector2Int(0, randomStartY);
-        endCoords = new Vector2Int(width - 1, randomEndY); // Use width-1 so it works for any grid size
-
-        GenerateGrid();
-
-        // Visual indicator so we can see the new Start/End
-        allTiles[startCoords.x, startCoords.y].GetComponent<SpriteRenderer>().color = Color.green;
-        allTiles[endCoords.x, endCoords.y].GetComponent<SpriteRenderer>().color = Color.red;
-
-        TracePath();
-
-        // This automatically scales the camera based on the grid height
-        Camera.main.orthographicSize = (height / 2f) + 1f;
-    }
-
-    void GenerateGrid()
-    {
-        float xOffset = (width - 1) / 2f;
-        float yOffset = (height - 1) / 2f;
-
-        for (int x = 0; x < width; x++)
-        {
-            for (int y = 0; y < height; y++)
-            {
-                Vector3 spawnPos = new Vector3(x - xOffset, y - yOffset, 0);
-                GameObject newTile = Instantiate(tilePrefab, spawnPos, Quaternion.identity);
-
-                TileRotation tileScript = newTile.GetComponent<TileRotation>();
-
-                // --- MOVE THESE TO THE TOP OF THE LOOP ---
-                tileScript.gridX = x;
-                tileScript.gridY = y;
-                allTiles[x, y] = tileScript;
-                // ----------------------------------------
-
-                TileRotation.Direction finalDir;
-
-                if (x == startCoords.x && y == startCoords.y)
-                {
-                    finalDir = GetValidStartDirection(x, y);
-                }
-                else
-                {
-                    finalDir = (TileRotation.Direction)Random.Range(0, 4);
-                }
-
-                tileScript.currentDirection = finalDir;
-                newTile.transform.eulerAngles = new Vector3(0, 0, (int)finalDir * -90f);
-
-                // Turn on Goal Indicator if it's the end coordinate
-                if (x == endCoords.x && y == endCoords.y)
-                {
-                    Transform goal = newTile.transform.Find("GoalIndicator");
-                    if (goal != null)
-                    {
-                        goal.gameObject.SetActive(true);
-                    }
-                }
-
-                // Hazard randomization block
-                if (Random.value < hazardChance && !IsStartOrEnd(x, y))
-                {
-                    int randomHazard = Random.Range(1, System.Enum.GetValues(typeof(TileProperty.TileType)).Length);
-                    newTile.GetComponent<TileProperty>().SetType((TileProperty.TileType)randomHazard);
-
-                    TileProperty tp = newTile.GetComponent<TileProperty>();
-
-                    switch (tp.type)
-                    {
-                        case TileProperty.TileType.Spike: tp.currentData = spikeStats; break;
-                        case TileProperty.TileType.Slow: tp.currentData = slowStats; break;
-                        case TileProperty.TileType.Burn: tp.currentData = burnStats; break;
-                        case TileProperty.TileType.Freeze: tp.currentData = freezeStats; break;
-                        case TileProperty.TileType.Pitfall: tp.currentData = pitfallStats; break;
-                        case TileProperty.TileType.Poison: tp.currentData = poisonStats; break;
-                        case TileProperty.TileType.Static: tp.currentData = staticStats; break;
-                        case TileProperty.TileType.Bleed: tp.currentData = bleedStats; break;
-                        case TileProperty.TileType.Curse: tp.currentData = curseStats; break;
-                    }
-                }
-
-                // (Note: Removed old tileScript.gridX/Y lines from down here)
-            }
-        }
     }
 }

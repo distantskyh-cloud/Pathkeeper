@@ -146,7 +146,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 89196368}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0c49af42cb5928b458c9c86a95ed83c8, type: 3}
   m_Name: 
@@ -340,55 +340,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b7fc194b6328e454dbab653f2380fbc3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  tilePrefab: {fileID: 1865703344442735408, guid: 00c3a67ec33404b449adbc84b918f9fd, type: 3}
+  Tile_Normal: {fileID: 691569157043141345, guid: f59537b6c74eb1a45b146648bfeca084, type: 3}
+  Tile_Slow: {fileID: 3452529895713404582, guid: 03354b37e5cbb9e4298842f09e9e336c, type: 3}
+  Tile_Burn: {fileID: 6169363116179393144, guid: bfd1542a38233d94a8fa062c67ec2c60, type: 3}
+  Tile_Freeze: {fileID: 7397404311808882657, guid: 100373ddb603c9a418e4db17c5ccd227, type: 3}
+  Tile_Pitfall: {fileID: 5034566930580570974, guid: 98d97f50fb9b7e344a6916c9116f8052, type: 3}
+  Tile_Poison: {fileID: 434720962904858669, guid: d15e39e7590797c49a241c1c6339dc5e, type: 3}
+  Tile_Static: {fileID: 4447934144906690982, guid: 4c2cf7816b1093a4b9e04c1bc7008435, type: 3}
+  Tile_Bleed: {fileID: 1433380386161478433, guid: ba70a2e75e981074ab184aededb273e6, type: 3}
+  Tile_Curse: {fileID: 5414268482443519225, guid: bcd618dc281099149b84e43bd923ae3c, type: 3}
   width: 15
   height: 15
   hazardChance: 0.1
-  spikeStats:
-    damage: 10
-    speedMult: 1
-    dotDamage: 0
-    duration: 0
-  pitfallStats:
-    damage: 999
-    speedMult: 0
-    dotDamage: 0
-    duration: 0
-  slowStats:
-    damage: 0
-    speedMult: 0.5
-    dotDamage: 0
-    duration: 0
-  freezeStats:
-    damage: 0
-    speedMult: 0
-    dotDamage: 0
-    duration: 1.5
-  burnStats:
-    damage: 5
-    speedMult: 1
-    dotDamage: 4
-    duration: 3
-  poisonStats:
-    damage: 0
-    speedMult: 1
-    dotDamage: 1
-    duration: -1
-  staticStats:
-    damage: 2
-    speedMult: 0.8
-    dotDamage: 2
-    duration: 2
-  bleedStats:
-    damage: 0
-    speedMult: 1
-    dotDamage: 3
-    duration: 5
-  curseStats:
-    damage: 0
-    speedMult: 1
-    dotDamage: 0
-    duration: 10
   startCoords: {x: 0, y: 0}
   endCoords: {x: 4, y: 4}
   currentPathWorldPositions: []
@@ -436,7 +399,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2eab5b75412e80343886a3c9b94268ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  enemyPrefab: {fileID: 2412594642971370078, guid: e4851098c369da743ac093c9a36f88b4, type: 3}
+  swordsmanPrefab: {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+  tankerPrefab: {fileID: 4723464183452422863, guid: b612d7af71a3feb46abf15f69f36e095, type: 3}
+  roguePrefab: {fileID: 4281205323411650543, guid: eda612901722ea34b902f38c320edd28, type: 3}
+  priestPrefab: {fileID: 2087154557947067291, guid: a7c8c6d50247f184abb81531fa3d342f, type: 3}
+  supporterPrefab: {fileID: 1724431412381831006, guid: 99b4775a540db184ca98ab20b58684ec, type: 3}
+  paladinPrefab: {fileID: 5945409233122538404, guid: 26c3a43c5f7cd6f4da01072ecdcc520f, type: 3}
   spawnInterval: 5
 --- !u!4 &1996314465
 Transform:

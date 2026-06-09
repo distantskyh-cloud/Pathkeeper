@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 3042699437740505407}
   - component: {fileID: 8313039319170991696}
   - component: {fileID: 247623497903171921}
-  - component: {fileID: -8413336172364133516}
+  - component: {fileID: 3406018810999523856}
   - component: {fileID: 8628100985972310215}
   - component: {fileID: 1286598726671271250}
   m_Layer: 0
@@ -101,7 +101,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   speed: 2
---- !u!114 &-8413336172364133516
+--- !u!114 &3406018810999523856
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -114,9 +114,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   currentClass: 0
-  maxHP: 0
-  currentHP: 0
+  maxHP: 100
   armorPercent: 0
+  baseSpeed: 1
+  currentHP: 0
 --- !u!58 &8628100985972310215
 CircleCollider2D:
   m_ObjectHideFlags: 0
