@@ -146,7 +146,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 89196368}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0c49af42cb5928b458c9c86a95ed83c8, type: 3}
   m_Name: 
@@ -399,13 +399,73 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2eab5b75412e80343886a3c9b94268ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  swordsmanPrefab: {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
-  tankerPrefab: {fileID: 4723464183452422863, guid: b612d7af71a3feb46abf15f69f36e095, type: 3}
-  roguePrefab: {fileID: 4281205323411650543, guid: eda612901722ea34b902f38c320edd28, type: 3}
-  priestPrefab: {fileID: 2087154557947067291, guid: a7c8c6d50247f184abb81531fa3d342f, type: 3}
-  supporterPrefab: {fileID: 1724431412381831006, guid: 99b4775a540db184ca98ab20b58684ec, type: 3}
-  paladinPrefab: {fileID: 5945409233122538404, guid: 26c3a43c5f7cd6f4da01072ecdcc520f, type: 3}
-  spawnInterval: 5
+  allWaves:
+  - waveName: Swordsman Wave
+    enemyPrefabsToSpawn:
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    spawnInterval: 3
+  - waveName: Swordsman-Tanker Wave
+    enemyPrefabsToSpawn:
+    - {fileID: 4723464183452422863, guid: b612d7af71a3feb46abf15f69f36e095, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 4723464183452422863, guid: b612d7af71a3feb46abf15f69f36e095, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    spawnInterval: 3
+  - waveName: Swordsman-Tanker-Rogue Wave
+    enemyPrefabsToSpawn:
+    - {fileID: 4723464183452422863, guid: b612d7af71a3feb46abf15f69f36e095, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 4281205323411650543, guid: eda612901722ea34b902f38c320edd28, type: 3}
+    - {fileID: 4281205323411650543, guid: eda612901722ea34b902f38c320edd28, type: 3}
+    - {fileID: 4723464183452422863, guid: b612d7af71a3feb46abf15f69f36e095, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 4281205323411650543, guid: eda612901722ea34b902f38c320edd28, type: 3}
+    - {fileID: 4281205323411650543, guid: eda612901722ea34b902f38c320edd28, type: 3}
+    spawnInterval: 3
+  - waveName: Full Parties Wave
+    enemyPrefabsToSpawn:
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 4723464183452422863, guid: b612d7af71a3feb46abf15f69f36e095, type: 3}
+    - {fileID: 2087154557947067291, guid: a7c8c6d50247f184abb81531fa3d342f, type: 3}
+    - {fileID: 1724431412381831006, guid: 99b4775a540db184ca98ab20b58684ec, type: 3}
+    - {fileID: 4281205323411650543, guid: eda612901722ea34b902f38c320edd28, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 4723464183452422863, guid: b612d7af71a3feb46abf15f69f36e095, type: 3}
+    - {fileID: 2087154557947067291, guid: a7c8c6d50247f184abb81531fa3d342f, type: 3}
+    - {fileID: 1724431412381831006, guid: 99b4775a540db184ca98ab20b58684ec, type: 3}
+    - {fileID: 4281205323411650543, guid: eda612901722ea34b902f38c320edd28, type: 3}
+    spawnInterval: 3
+  - waveName: Boss Wave
+    enemyPrefabsToSpawn:
+    - {fileID: 5945409233122538404, guid: 26c3a43c5f7cd6f4da01072ecdcc520f, type: 3}
+    - {fileID: 4723464183452422863, guid: b612d7af71a3feb46abf15f69f36e095, type: 3}
+    - {fileID: 4723464183452422863, guid: b612d7af71a3feb46abf15f69f36e095, type: 3}
+    - {fileID: 2087154557947067291, guid: a7c8c6d50247f184abb81531fa3d342f, type: 3}
+    - {fileID: 2087154557947067291, guid: a7c8c6d50247f184abb81531fa3d342f, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 2310257878499828891, guid: 68a8cc652e355114f92ec157d1bc8775, type: 3}
+    - {fileID: 1724431412381831006, guid: 99b4775a540db184ca98ab20b58684ec, type: 3}
+    - {fileID: 4281205323411650543, guid: eda612901722ea34b902f38c320edd28, type: 3}
+    - {fileID: 4281205323411650543, guid: eda612901722ea34b902f38c320edd28, type: 3}
+    - {fileID: 4281205323411650543, guid: eda612901722ea34b902f38c320edd28, type: 3}
+    spawnInterval: 3
+  currentWaveIndex: 0
 --- !u!4 &1996314465
 Transform:
   m_ObjectHideFlags: 0

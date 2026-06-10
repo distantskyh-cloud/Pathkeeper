@@ -101,30 +101,41 @@ public class GameManager : MonoBehaviour
     /// <summary>
     /// Configures game modifiers dynamically before the match initializes
     /// </summary>
-    public void SelectDifficulty(string difficulty)
+    public void SelectDifficulty(string difficultyName)
     {
-        selectedDifficultyName = difficulty;
+        selectedDifficultyName = difficultyName;
 
-        switch (difficulty.ToLower())
+        switch (difficultyName.ToLower())
         {
             case "easy":
                 enemyHealthMultiplier = 0.75f;
-                enemySpeedMultiplier = 0.8f;
+                enemySpeedMultiplier = 0.85f;
                 break;
             case "normal":
                 enemyHealthMultiplier = 1.0f;
                 enemySpeedMultiplier = 1.0f;
                 break;
             case "hard":
-                enemyHealthMultiplier = 1.5f;
+                enemyHealthMultiplier = 1.4f;
                 enemySpeedMultiplier = 1.2f;
                 break;
         }
 
-        Debug.Log($"[DIFFICULTY SET] {selectedDifficultyName} Mode: HP x{enemyHealthMultiplier}, Speed x{enemySpeedMultiplier}");
+        Debug.Log($"[DIFFICULTY SET] Selected: {selectedDifficultyName}. HP Mult: {enemyHealthMultiplier}, Speed Mult: {enemySpeedMultiplier}");
 
-        // Automatically start the map once difficulty is locked in
+        // 1. Move into the gameplay running state
         ChangeState(GameState.Gameplay);
+
+        // 2. KICKSTART THE SPAWNER ENGINE IMMEDIATELY HERE!
+        if (spawnerScript == null) spawnerScript = FindObjectOfType<EnemySpawner>();
+        if (spawnerScript != null)
+        {
+            spawnerScript.StartWave(0); // Safely starts Wave 1 after choice is made!
+        }
+        else
+        {
+            Debug.LogError("[GAME MANAGER ERROR] Could not find EnemySpawner to start the match!");
+        }
     }
 
     /// <summary>
@@ -162,7 +173,7 @@ public class GameManager : MonoBehaviour
     void OnGUI()
     {
         // Custom box styling for transparency
-        GUI.Box(new Rect(10, 10, 250, 160), $"--- DEV FLOW PANEL ---");
+        GUI.Box(new Rect(10, 10, 200, 160), $"--- DEV FLOW PANEL ---");
         GUI.Label(new Rect(20, 35, 230, 25), $"Current State: {currentState}");
 
         if (currentState == GameState.Gameplay)
@@ -172,14 +183,14 @@ public class GameManager : MonoBehaviour
             GUI.Label(new Rect(20, 110, 230, 25), $"Wave: {currentWave}/{totalWaves}");
 
             // Debug button to test losing health manually
-            if (GUI.Button(new Rect(20, 135, 100, 25), "Damage Base")) DamageBase(5);
-            if (GUI.Button(new Rect(130, 135, 100, 25), "Next Wave")) AdvanceWave();
+            if (GUI.Button(new Rect(20, 135, 75, 25), "Damage Base")) DamageBase(5);
+            if (GUI.Button(new Rect(130, 135, 75, 25), "Next Wave")) AdvanceWave();
         }
 
         // State Machine Screen Controls
         if (currentState == GameState.MainMenu)
         {
-            if (GUI.Button(new Rect(40, 60, 180, 40), "START GAME"))
+            if (GUI.Button(new Rect(40, 60, 150, 40), "START GAME"))
             {
                 ChangeState(GameState.DifficultySelect);
             }
@@ -194,12 +205,12 @@ public class GameManager : MonoBehaviour
         else if (currentState == GameState.GameOver)
         {
             GUI.Label(new Rect(40, 60, 180, 30), "☠️ BASE OVERRUN! ☠️");
-            if (GUI.Button(new Rect(40, 95, 180, 35), "Return to Menu")) ChangeState(GameState.MainMenu);
+            if (GUI.Button(new Rect(40, 95, 150, 35), "Return to Menu")) ChangeState(GameState.MainMenu);
         }
         else if (currentState == GameState.Victory)
         {
             GUI.Label(new Rect(40, 60, 180, 30), "🏆 VICTORY! MAP CLEARED! 🏆");
-            if (GUI.Button(new Rect(40, 95, 180, 35), "Play Again")) ChangeState(GameState.MainMenu);
+            if (GUI.Button(new Rect(40, 95, 150, 35), "Play Again")) ChangeState(GameState.MainMenu);
         }
     }
 }
