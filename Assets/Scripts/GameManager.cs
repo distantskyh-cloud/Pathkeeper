@@ -6,6 +6,10 @@ public class GameManager : MonoBehaviour
     // Singleton instance allowing any script to easily read the game state
     public static GameManager Instance { get; private set; }
 
+    [Header("Developer Test Flags")]
+    [Tooltip("Toggle this via the Dev UI to enable or completely lock tile selection interactions.")]
+    public bool isTileSwitchingEnabled = true;
+
     // Define the distinct game states
     public enum GameState { MainMenu, DifficultySelect, Gameplay, GameOver, Victory }
 
@@ -123,19 +127,8 @@ public class GameManager : MonoBehaviour
 
         Debug.Log($"[DIFFICULTY SET] Selected: {selectedDifficultyName}. HP Mult: {enemyHealthMultiplier}, Speed Mult: {enemySpeedMultiplier}");
 
-        // 1. Move into the gameplay running state
+        // Move into the gameplay state, but DO NOT automatically kickstart the spawner anymore!
         ChangeState(GameState.Gameplay);
-
-        // 2. KICKSTART THE SPAWNER ENGINE IMMEDIATELY HERE!
-        if (spawnerScript == null) spawnerScript = FindObjectOfType<EnemySpawner>();
-        if (spawnerScript != null)
-        {
-            spawnerScript.StartWave(0); // Safely starts Wave 1 after choice is made!
-        }
-        else
-        {
-            Debug.LogError("[GAME MANAGER ERROR] Could not find EnemySpawner to start the match!");
-        }
     }
 
     /// <summary>
@@ -172,45 +165,91 @@ public class GameManager : MonoBehaviour
     // This renders raw buttons on the screen so you can completely bypass UI designs for now.
     void OnGUI()
     {
-        // Custom box styling for transparency
-        GUI.Box(new Rect(10, 10, 200, 160), $"--- DEV FLOW PANEL ---");
-        GUI.Label(new Rect(20, 35, 230, 25), $"Current State: {currentState}");
+        // --- STATE-ADAPTIVE MASTER BOX PANEL ---
+        // Width reduced by 10 (now 220). Height scales automatically based on what screen you are looking at!
+        int panelHeight = (currentState == GameState.Gameplay) ? 225 : 150;
+        GUI.Box(new Rect(15, 15, 220, panelHeight), $"⚙️ DEV SYSTEM [{currentState.ToString().ToUpper()}]");
 
+        // ==========================================
+        // 1. GAMEPLAY STATE PANEL CONTENT
+        // ==========================================
         if (currentState == GameState.Gameplay)
         {
-            GUI.Label(new Rect(20, 60, 230, 25), $"Base HP: {currentBaseHealth}/{maxBaseHealth}");
-            GUI.Label(new Rect(20, 85, 230, 25), $"Difficulty: {selectedDifficultyName}");
-            GUI.Label(new Rect(20, 110, 230, 25), $"Wave: {currentWave}/{totalWaves}");
+            // --- SECTION 1: MATCH STATS ---
+            GUI.Label(new Rect(25, 40, 200, 22), $"Difficulty: {selectedDifficultyName.ToUpper()}");
+            GUI.Label(new Rect(25, 60, 200, 22), $"Base HP: {currentBaseHealth} / {maxBaseHealth}");
+            GUI.Label(new Rect(25, 80, 200, 22), $"Wave: {currentWave} / {totalWaves}");
 
-            // Debug button to test losing health manually
-            if (GUI.Button(new Rect(20, 135, 75, 25), "Damage Base")) DamageBase(5);
-            if (GUI.Button(new Rect(130, 135, 75, 25), "Next Wave")) AdvanceWave();
+            // NEW ECONOMY TRACKER DISPLAY
+            int currentGold = EconomyManager.Instance != null ? EconomyManager.Instance.GetCurrentGold() : 0;
+            GUI.Label(new Rect(25, 100, 200, 22), $"Current Gold: {currentGold}g");
+
+            // --- SECTION 2: WAVE CONTROL BUTTON ---
+            if (spawnerScript == null) spawnerScript = FindObjectOfType<EnemySpawner>();
+
+            if (spawnerScript != null && !spawnerScript.IsWaveRunning())
+            {
+                string spawnButtonText = (spawnerScript.currentWaveIndex == 0 && spawnerScript.currentEnemyIndex == 0) ? "🚀 START WAVE 1" : "▶️ START NEXT WAVE";
+                if (GUI.Button(new Rect(25, 130, 200, 25), spawnButtonText))
+                {
+                    spawnerScript.StartWave(spawnerScript.currentWaveIndex);
+                }
+            }
+            else
+            {
+                GUI.enabled = false;
+                GUI.Button(new Rect(25, 130, 200, 25), "🔒 WAVE IN PROGRESS...");
+                GUI.enabled = true;
+            }
+
+            // --- SECTION 3: TILE SWAPPING TOGGLE ---
+            string toggleText = isTileSwitchingEnabled ? "🟢 SWAPPING: ALLOWED" : "🔴 SWAPPING: LOCKED";
+            if (GUI.Button(new Rect(25, 170, 200, 25), toggleText))
+            {
+                isTileSwitchingEnabled = !isTileSwitchingEnabled;
+                Debug.Log($"[DEV TOOL] Tile swapping state changed! Allowed = {isTileSwitchingEnabled}");
+            }
+
+            // --- SECTION 4: CHEATS & UTILITIES ---
+            // Side-by-side buttons split the 200px width perfectly (95px each with a 10px gap)
+            if (GUI.Button(new Rect(25, 205, 95, 25), "💥 Hit Base")) DamageBase(5);
+            if (GUI.Button(new Rect(130, 205, 95, 25), "⏭️ Skip Wave")) AdvanceWave();
         }
-
-        // State Machine Screen Controls
-        if (currentState == GameState.MainMenu)
+        // ==========================================
+        // 2. MAIN MENU STATE
+        // ==========================================
+        else if (currentState == GameState.MainMenu)
         {
-            if (GUI.Button(new Rect(40, 60, 150, 40), "START GAME"))
+            if (GUI.Button(new Rect(35, 60, 180, 40), "START GAME"))
             {
                 ChangeState(GameState.DifficultySelect);
             }
         }
+        // ==========================================
+        // 3. DIFFICULTY SELECT STATE
+        // ==========================================
         else if (currentState == GameState.DifficultySelect)
         {
-            GUI.Label(new Rect(20, 45, 230, 25), "Pick Difficulty:");
-            if (GUI.Button(new Rect(40, 70, 50, 30), "Easy")) SelectDifficulty("easy");
-            if (GUI.Button(new Rect(100, 70, 60, 30), "Normal")) SelectDifficulty("normal");
-            if (GUI.Button(new Rect(170, 70, 50, 30), "Hard")) SelectDifficulty("hard");
+            GUI.Label(new Rect(25, 45, 200, 25), "Pick Difficulty:");
+            if (GUI.Button(new Rect(25, 75, 50, 30), "Easy")) SelectDifficulty("easy");
+            if (GUI.Button(new Rect(85, 75, 65, 30), "Normal")) SelectDifficulty("normal");
+            if (GUI.Button(new Rect(160, 75, 50, 30), "Hard")) SelectDifficulty("hard");
         }
+        // ==========================================
+        // 4. GAME OVER STATE
+        // ==========================================
         else if (currentState == GameState.GameOver)
         {
-            GUI.Label(new Rect(40, 60, 180, 30), "☠️ BASE OVERRUN! ☠️");
-            if (GUI.Button(new Rect(40, 95, 150, 35), "Return to Menu")) ChangeState(GameState.MainMenu);
+            GUI.Label(new Rect(25, 50, 200, 30), "☠️ BASE OVERRUN! ☠️");
+            if (GUI.Button(new Rect(25, 85, 200, 35), "Return to Menu")) ChangeState(GameState.MainMenu);
         }
+        // ==========================================
+        // 5. VICTORY STATE
+        // ==========================================
         else if (currentState == GameState.Victory)
         {
-            GUI.Label(new Rect(40, 60, 180, 30), "🏆 VICTORY! MAP CLEARED! 🏆");
-            if (GUI.Button(new Rect(40, 95, 150, 35), "Play Again")) ChangeState(GameState.MainMenu);
+            GUI.Label(new Rect(25, 50, 200, 30), "🏆 MAP CLEARED! 🏆");
+            if (GUI.Button(new Rect(25, 85, 200, 35), "Play Again")) ChangeState(GameState.MainMenu);
         }
     }
 }

@@ -3,61 +3,120 @@ using UnityEngine;
 public class SelectionManager : MonoBehaviour
 {
     private TileRotation firstSelected;
-    public Color highlightColor = Color.white; // To show what is selected
+
+    [Header("Visual Feedback Settings")]
+    public Color selectionHighlightColor = Color.gray;
 
     void Update()
     {
-        if (Input.GetMouseButtonDown(0)) // Left Click
+        // FAILSAFE 2: Check our new GameManager developer toggle button before running selection math!
+        if (GameManager.Instance != null && !GameManager.Instance.isTileSwitchingEnabled)
         {
-            // HandleSelection();
+            // If the developer turned off tile switching via the Dev GUI, clear selections and exit
+            if (firstSelected != null)
+            {
+                ResetTileVisual(firstSelected);
+                firstSelected = null;
+            }
+            return;
+        }
+
+        // Left Click
+        if (Input.GetMouseButtonDown(0))
+        {
+            HandleSelection();
         }
     }
 
     void HandleSelection()
     {
-        // Convert mouse position to 2D coordinates
-        Vector2 rayPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        Vector3 clickWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        Vector2 rayPos = new Vector2(clickWorldPos.x, clickWorldPos.y);
 
-        // DEBUG 1: Did the click even register?
-        Debug.Log($"[Step 1] Mouse clicked at {rayPos}");
-
-        // Perform the raycast
-        RaycastHit2D hit = Physics2D.Raycast(rayPos, Vector2.zero);
-
-        if (hit.collider != null)
+        Collider2D hitCollider = Physics2D.OverlapPoint(rayPos);
+        if (hitCollider == null)
         {
-            // DEBUG 2: What did we physically hit?
-            Debug.Log($"[Step 2] Raycast HIT object: {hit.collider.name} on Layer: {LayerMask.LayerToName(hit.collider.gameObject.layer)}");
-
-            TileRotation clickedTile = hit.collider.GetComponent<TileRotation>();
-
-            if (clickedTile != null)
+            if (firstSelected != null)
             {
-                // DEBUG 3: Did we find the script?
-                Debug.Log($"[Step 3] Successfully found TileRotation script on {clickedTile.gridX}, {clickedTile.gridY}");
+                ResetTileVisual(firstSelected);
+                firstSelected = null;
+                Debug.Log("[SELECTION] Clicked empty space. Cleared active selection.");
+            }
+            return;
+        }
 
-                if (firstSelected == null)
+        TileRotation clickedTile = hitCollider.GetComponentInParent<TileRotation>();
+        if (clickedTile == null) clickedTile = hitCollider.GetComponentInChildren<TileRotation>();
+
+        if (clickedTile != null)
+        {
+            // --- FAILSAFE 1: START & END POINTS PROTECTION ---
+            GridManager gridManager = FindObjectOfType<GridManager>();
+            if (gridManager != null)
+            {
+                Vector2Int clickedCoords = new Vector2Int(clickedTile.gridX, clickedTile.gridY);
+
+                if (clickedCoords == gridManager.startCoords || clickedCoords == gridManager.endCoords)
                 {
-                    firstSelected = clickedTile;
-                    // Visual confirmation
-                    //firstSelected.GetComponent<SpriteRenderer>().color = Color.gray;
-                }
-                else
-                {
-                    // Execute swap
-                    FindObjectOfType<GridManager>().SwapTiles(firstSelected, clickedTile);
-                    firstSelected = null;
+                    Debug.LogWarning($"[SELECTION DENIED] Tile at ({clickedTile.gridX}, {clickedTile.gridY}) is a critical Start or End zone and cannot be moved!");
+                    return; // Stop processing this selection completely!
                 }
             }
+            // --------------------------------------------------
+
+            // CASE 1: First Tile Selection
+            if (firstSelected == null)
+            {
+                firstSelected = clickedTile;
+                ApplySelectionTint(firstSelected, selectionHighlightColor);
+                Debug.Log($"[SELECTION SUCCESS] First tile locked at coordinate: ({firstSelected.gridX}, {firstSelected.gridY})");
+            }
+            // CASE 2: Deselect Same Tile
+            else if (firstSelected == clickedTile)
+            {
+                ResetTileVisual(firstSelected);
+                firstSelected = null;
+                Debug.Log("[SELECTION] Cleared active selection.");
+            }
+            // CASE 3: Execute Grid Swap
             else
             {
-                Debug.LogWarning("[Step 3 FAILED] Hit an object, but it has no TileRotation script!");
+                Debug.Log($"[SELECTION] Second tile locked at ({clickedTile.gridX}, {clickedTile.gridY}). Processing grid swap...");
+
+                if (gridManager != null)
+                {
+                    gridManager.SwapTiles(firstSelected, clickedTile);
+                }
+
+                ResetTileVisual(firstSelected);
+                firstSelected = null;
             }
+        }
+    }
+
+    private void ApplySelectionTint(TileRotation tile, Color tint)
+    {
+        if (tile == null) return;
+        SpriteRenderer sr = tile.GetComponent<SpriteRenderer>();
+        if (sr == null) sr = tile.GetComponentInChildren<SpriteRenderer>();
+        if (sr != null) sr.color = tint;
+    }
+
+    private void ResetTileVisual(TileRotation tile)
+    {
+        if (tile == null) return;
+        TileProperty propertyScript = tile.GetComponent<TileProperty>();
+        if (propertyScript == null) propertyScript = tile.GetComponentInChildren<TileProperty>();
+
+        if (propertyScript != null)
+        {
+            propertyScript.RefreshVisuals(isHighlighted: false);
         }
         else
         {
-            // If you see this, your BoxCollider2D is missing or the Z-axis is wrong
-            Debug.Log("[Step 2 FAILED] Raycast hit nothing.");
+            SpriteRenderer sr = tile.GetComponent<SpriteRenderer>();
+            if (sr == null) sr = tile.GetComponentInChildren<SpriteRenderer>();
+            if (sr != null) sr.color = Color.white;
         }
     }
 }

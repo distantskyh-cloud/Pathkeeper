@@ -16,9 +16,10 @@ public class EnemySpawner : MonoBehaviour
     [Header("Wave Design Layouts")]
     public List<Wave> allWaves;
 
-    [Header("Runtime Tracker Info (Read Only)")]
+    [Header("Runtime Tracker Info")]
     public int currentWaveIndex = 0;
-    private int currentEnemyIndex = 0;
+    // Changed from private to public so GameManager button logic can inspect the queue history
+    public int currentEnemyIndex = 0;
     private float spawnTimer;
     private bool isWaveActive = false;
 
@@ -54,16 +55,24 @@ public class EnemySpawner : MonoBehaviour
             // 2. If we finished spawning, check if the board is completely clear of enemies
             else
             {
-                // Find all active enemies currently alive on the map
                 Enemy[] enemiesOnField = FindObjectsOfType<Enemy>();
 
                 if (enemiesOnField.Length == 0)
                 {
                     isWaveActive = false;
-                    Debug.Log($"[WAVE CLEAN CLEAR] All enemies from {currentWave.waveName} have been defeated! Preparing next wave...");
+                    Debug.Log($"[WAVE CLEAN CLEAR] All enemies from {currentWave.waveName} have been defeated!");
 
-                    // Trigger intermission delay only when the field is 100% empty
-                    Invoke(nameof(TriggerNextWave), 5f);
+                    // NEW ECONOMY REWARD HOOK: Payout end-of-wave completion bonuses
+                    if (EconomyManager.Instance != null)
+                    {
+                        int completionBonus = 50;
+                        EconomyManager.Instance.AddGold(completionBonus);
+                        Debug.Log($"[ECONOMY] Awarded +{completionBonus}g Wave Clear Payout!");
+                    }
+
+                    // Preparation phase setup: Prepare the index tracker for the NEXT round ahead
+                    currentWaveIndex++;
+                    currentEnemyIndex = 0;
                 }
             }
         }
@@ -132,6 +141,11 @@ public class EnemySpawner : MonoBehaviour
         }
 
         Debug.Log($"[WAVE STARTED] Now playing: {allWaves[currentWaveIndex].waveName} (Wave {currentWaveIndex + 1}/{allWaves.Count})");
+    }
+
+    public bool IsWaveRunning()
+    {
+        return isWaveActive;
     }
 
     void TriggerNextWave()

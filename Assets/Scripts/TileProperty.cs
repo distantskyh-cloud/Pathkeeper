@@ -16,6 +16,11 @@ public class TileProperty : MonoBehaviour
     public TileType type = TileType.Normal;
     public enum TileType { Normal, Slow, Burn, Freeze, Pitfall, Poison, Static, Bleed, Curse }
 
+    // NEW UPGRADE TRACKERS
+    [Header("Upgrade Progression")]
+    public int currentTier = 1;
+    public const int maxTier = 3;
+
     public HazardData currentData;
 
     private void Awake()
@@ -55,6 +60,8 @@ public class TileProperty : MonoBehaviour
         }
     }
 
+
+
     // Consolidated from TileTrigger.cs: The tile now applies its own hazard rules directly
     private void OnTriggerEnter2D(Collider2D collision)
     {
@@ -63,7 +70,7 @@ public class TileProperty : MonoBehaviour
         if (enemy != null)
         {
             enemy.ApplyTileHazard(currentData);
-            Debug.Log($"[INTERACTION] Enemy ({enemy.currentClass}) stepped on tile prefab: {type}");
+            // Debug.Log($"[INTERACTION] Enemy ({enemy.currentClass}) stepped on tile prefab: {type}");
         }
     }
 

@@ -2,7 +2,6 @@
 
 public class Enemy : MonoBehaviour
 {
-    // The enum remains so other systems (like Spawners or Tiles) can easily identify this unit
     public enum EnemyClass { Swordsman, Tanker, Rogue, Priest, Supporter, Paladin }
 
     [Header("Prefab Baseline Config")]
@@ -24,32 +23,31 @@ public class Enemy : MonoBehaviour
     private EnemyPathFinding pathfindingScript;
     private bool hasUsedPaladinHeal = false;
 
+    [Header("Economy Rewards")]
+    [Tooltip("The amount of gold given to the player when this specific type of enemy is defeated.")]
+    public int goldBountyReward = 15;
+
     void Awake()
     {
         pathfindingScript = GetComponent<EnemyPathFinding>();
     }
 
-    // UPDATED: This completely respects independent prefab inspector data
     public void InitializeEnemy(EnemyClass targetClass)
     {
         currentClass = targetClass;
 
-        // 1. Scale baseline max health via dynamic Wave Multipliers
         if (GameManager.Instance != null)
         {
             maxHP *= GameManager.Instance.enemyHealthMultiplier;
         }
 
-        // 2. Set current health to our calculated max value
         currentHP = maxHP;
 
-        // 3. Scale base speed via dynamic difficulty settings
         if (GameManager.Instance != null)
         {
             baseSpeed *= GameManager.Instance.enemySpeedMultiplier;
         }
 
-        // 4. Safely push speed configuration right to your navigation script
         if (pathfindingScript == null) pathfindingScript = GetComponent<EnemyPathFinding>();
         if (pathfindingScript != null) pathfindingScript.speed = baseSpeed;
     }
@@ -60,6 +58,7 @@ public class Enemy : MonoBehaviour
         {
             if (dotDamagePerSecond > 0)
             {
+                // Correctly routes status effect ticks into our consolidated damage method
                 TakeDamage(dotDamagePerSecond * Time.deltaTime, isStatusEffect: true);
             }
 
@@ -80,7 +79,7 @@ public class Enemy : MonoBehaviour
         {
             if (hazard.duration == 0 && hazard.damage == 0 && hazard.dotDamage == 0)
             {
-                multiplier = 1f; // Treat as a normal, non-slowing tile
+                multiplier = 1f;
             }
         }
 
@@ -110,12 +109,12 @@ public class Enemy : MonoBehaviour
         if (pathfindingScript != null) pathfindingScript.speed = baseSpeed;
     }
 
-    // UPDATED: Fully exposed debug output tracking all 6 classes seamlessly
+    // --- CONSOLIDATED DAMAGE METHOD ---
     public void TakeDamage(float incomingDamage, bool isStatusEffect)
     {
         float finalDamage = incomingDamage;
 
-        // Apply defense reduction calculations only to physical hits (like spikes), bypass for DoTs
+        // Apply armor reduction to physical hits, bypass for damage over time
         if (!isStatusEffect)
         {
             finalDamage = incomingDamage * (1f - armorPercent);
@@ -123,10 +122,9 @@ public class Enemy : MonoBehaviour
 
         currentHP -= finalDamage;
 
-        // UNIVERSAL DEBUG LOG: Tracks incoming numbers, reductions, and remaining HP for any unit on screen
         Debug.Log($"[DAMAGE LIVE LOG] '{gameObject.name}' ({currentClass}) took {finalDamage:F1} damage (Type: {(isStatusEffect ? "DoT" : "Direct")}). Remaining HP: {currentHP:F1}/{maxHP}");
 
-        // PALADIN MID-BOSS CLEANSE & SELF-HEAL TRIGGER:
+        // PALADIN MID-BOSS CLEANSE & SELF-HEAL TRIGGER
         if (currentClass == EnemyClass.Paladin && !hasUsedPaladinHeal && currentHP <= (maxHP * 0.5f))
         {
             hasUsedPaladinHeal = true;
@@ -135,10 +133,28 @@ public class Enemy : MonoBehaviour
             Debug.Log("[MID-BOSS TRIGGER] Paladin dropped below 50% HP! Casted Holy Cleanse and regenerated 35% health.");
         }
 
+        // Trigger our centralized death function when health is depleted
         if (currentHP <= 0)
         {
-            Debug.Log($"[DEATH EVENT] '{gameObject.name}' ({currentClass}) health dropped to 0 and has been removed.");
-            Destroy(gameObject);
+            Die();
         }
+    }
+
+    void Die()
+    {
+        Debug.Log($"[DEATH EVENT] '{gameObject.name}' ({currentClass}) health dropped to 0.");
+
+        // ECONOMY REWARD HOOK: Hand over cash bounty upon unit death!
+        if (EconomyManager.Instance != null)
+        {
+            EconomyManager.Instance.AddGold(goldBountyReward);
+            Debug.Log($"[BOUNTY COLLECTED] +{goldBountyReward}g gained from killing {gameObject.name}!");
+        }
+        else
+        {
+            Debug.LogWarning("[ECONOMY WARNING] Tried to award gold, but EconomyManager.Instance is missing in the scene!");
+        }
+
+        Destroy(gameObject);
     }
 }

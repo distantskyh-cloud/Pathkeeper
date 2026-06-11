@@ -151,6 +151,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0c49af42cb5928b458c9c86a95ed83c8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  isTileSwitchingEnabled: 1
   currentState: 0
   maxBaseHealth: 20
   currentBaseHealth: 0
@@ -169,6 +170,51 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0.7171299, y: 0.021704387, z: -0.096719585}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &130160129
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 130160131}
+  - component: {fileID: 130160130}
+  m_Layer: 0
+  m_Name: EconomyManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &130160130
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 130160129}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 172275e87cfcb29469ae0b30e17431ed, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  startingGold: 100
+--- !u!4 &130160131
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 130160129}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -3.6434135, y: 3.2401886, z: -0.096719585}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -203,7 +249,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4eb472992c2f0fa429f92ce823feea9f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  highlightColor: {r: 1, g: 1, b: 1, a: 1}
+  selectionHighlightColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
 --- !u!4 &252631688
 Transform:
   m_ObjectHideFlags: 0
@@ -466,6 +512,7 @@ MonoBehaviour:
     - {fileID: 4281205323411650543, guid: eda612901722ea34b902f38c320edd28, type: 3}
     spawnInterval: 3
   currentWaveIndex: 0
+  currentEnemyIndex: 0
 --- !u!4 &1996314465
 Transform:
   m_ObjectHideFlags: 0
@@ -490,3 +537,4 @@ SceneRoots:
   - {fileID: 252631688}
   - {fileID: 1996314465}
   - {fileID: 89196370}
+  - {fileID: 130160131}

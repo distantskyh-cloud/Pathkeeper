@@ -16,7 +16,7 @@ public class TileTrigger : MonoBehaviour
         if (enemy != null && tileProperty != null)
         {
             enemy.ApplyTileHazard(tileProperty.currentData);
-            Debug.Log($"[INTERACTION] Enemy ({enemy.currentClass}) stepped on tile: {tileProperty.type}");
+            // Debug.Log($"[INTERACTION] Enemy ({enemy.currentClass}) stepped on tile: {tileProperty.type}");
         }
     }
 }
