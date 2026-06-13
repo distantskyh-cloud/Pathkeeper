@@ -64,30 +64,65 @@ public class SelectionManager : MonoBehaviour
             }
             // --------------------------------------------------
 
-            // CASE 1: First Tile Selection
+            // CASE 1: This is the very first tile being selected
             if (firstSelected == null)
             {
                 firstSelected = clickedTile;
-                ApplySelectionTint(firstSelected, selectionHighlightColor);
-                Debug.Log($"[SELECTION SUCCESS] First tile locked at coordinate: ({firstSelected.gridX}, {firstSelected.gridY})");
+
+                // --- NEW BRIDGE HOOK ---
+                // Push this script target reference directly to the GameManager UI!
+                if (GameManager.Instance != null)
+                {
+                    GameManager.Instance.selectedTileProperty = firstSelected.GetComponent<TileProperty>();
+                }
+                // ------------------------
+
+                SpriteRenderer sr = firstSelected.GetComponent<SpriteRenderer>();
+                if (sr == null) sr = firstSelected.GetComponentInChildren<SpriteRenderer>();
+                if (sr != null) sr.color = selectionHighlightColor;
+
+                Debug.Log($"[SELECTION] First tile selected at coordinate: {firstSelected.gridX}, {firstSelected.gridY}");
             }
             // CASE 2: Deselect Same Tile
             else if (firstSelected == clickedTile)
             {
                 ResetTileVisual(firstSelected);
                 firstSelected = null;
-                Debug.Log("[SELECTION] Cleared active selection.");
+
+                // Clear the active GUI context target
+                if (GameManager.Instance != null)
+                {
+                    GameManager.Instance.selectedTileProperty = null;
+                }
             }
-            // CASE 3: Execute Grid Swap
+            // CASE 3: A second, distinct tile was clicked -> Perform the swap!
             else
             {
-                Debug.Log($"[SELECTION] Second tile locked at ({clickedTile.gridX}, {clickedTile.gridY}). Processing grid swap...");
+                Debug.Log($"[SELECTION] Second tile selected at {clickedTile.gridX}, {clickedTile.gridY}. Checking transaction parameters.");
 
-                if (gridManager != null)
+                int swapCost = 10; // Customize your swap cost balancing here!
+
+                // Verify the player has the money available before running calculations
+                if (EconomyManager.Instance != null && !EconomyManager.Instance.CanAfford(swapCost))
                 {
-                    gridManager.SwapTiles(firstSelected, clickedTile);
+                    Debug.LogWarning($"[ECONOMY TRANSACTION DENIED] Swapping tiles costs {swapCost}g. You can't afford this!");
+                    ResetTileVisual(firstSelected);
+                    firstSelected = null;
+                    return;
                 }
 
+                GridManager grid = FindObjectOfType<GridManager>();
+                if (grid != null)
+                {
+                    // Spend the gold. If successful, authorize the physical asset swap!
+                    if (EconomyManager.Instance != null && EconomyManager.Instance.SpendGold(swapCost))
+                    {
+                        grid.SwapTiles(firstSelected, clickedTile);
+                        Debug.Log($"[ECONOMY] Charged -{swapCost}g for executing grid reorganization.");
+                    }
+                }
+
+                // Reset the visual tint on the first tile back to its original hazard color after swapping
                 ResetTileVisual(firstSelected);
                 firstSelected = null;
             }

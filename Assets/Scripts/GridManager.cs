@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class GridManager : MonoBehaviour
@@ -15,8 +15,8 @@ public class GridManager : MonoBehaviour
     public GameObject Tile_Curse;
 
     [Header("Grid Dimensions")]
-    public int width;
-    public int height;
+    public int width = 15; // Set via inspector or default to 15
+    public int height = 15; // Set via inspector or default to 15
 
     [Header("Level Balance")]
     [Range(0f, 1f)]
@@ -26,34 +26,64 @@ public class GridManager : MonoBehaviour
     public TileRotation[,] allTiles;
 
     [Header("Path Tracking Coordinates")]
-    public Vector2Int startCoords = new Vector2Int(0, 0);
-    public Vector2Int endCoords = new Vector2Int(4, 4);
+    public Vector2Int startCoords;
+    public Vector2Int endCoords;
     public List<Vector3> currentPathWorldPositions = new List<Vector3>();
+
+    [Header("Dynamic Path Puzzle Constraints")]
+    public int minPathLength = 15;
+    public int maxPathLength = 30;
+
+    [Tooltip("Coordinates that the enemy path trace MUST step through to be verified as valid.")]
+    public List<Vector2Int> mandatoryCheckpoints = new List<Vector2Int>();
+
+    [HideInInspector] public bool isCurrentPathValid = false;
+    [HideInInspector] public string pathValidationErrorMessage = "";
 
     void Start()
     {
         allTiles = new TileRotation[width, height];
 
-        // Randomize the Y positions for Start and End points
-        int randomStartY = Random.Range(0, height);
-        int randomEndY = Random.Range(0, height);
+        // 1. Establish the very first baseline positions on startup
+        RandomizeSpawnAndEndPositions();
 
-        startCoords = new Vector2Int(0, randomStartY);
-        endCoords = new Vector2Int(width - 1, randomEndY); // Works dynamically for any grid width
-
+        // 2. Generate the visual world matrix layout
         GenerateGrid();
 
-        // Apply starting visual highlight identifiers
+        // 3. Apply starting color highlight identifiers
+        RefreshEdgeVisualMarkers();
+
+        // 4. Trace our direction connections
+        TracePath();
+
+        // Automatically scale the camera perspective based on the grid height
+        Camera.main.orthographicSize = (height / 2f) + 1f;
+    }
+
+    /// <summary>
+    /// Helper logic to isolate edge node selection calculations cleanly
+    /// </summary>
+    private void RandomizeSpawnAndEndPositions()
+    {
+        // Left side edge: Column 0, completely random row height allocation
+        int randomStartY = Random.Range(0, height);
+        startCoords = new Vector2Int(0, randomStartY);
+
+        // Right side edge: Last Column (width - 1), completely random row height allocation
+        int randomEndY = Random.Range(0, height);
+        endCoords = new Vector2Int(width - 1, randomEndY);
+    }
+
+    /// <summary>
+    /// Colors the start spawn green and the end base target destination red
+    /// </summary>
+    private void RefreshEdgeVisualMarkers()
+    {
         if (allTiles[startCoords.x, startCoords.y] != null)
             allTiles[startCoords.x, startCoords.y].GetComponent<SpriteRenderer>().color = Color.green;
 
         if (allTiles[endCoords.x, endCoords.y] != null)
             allTiles[endCoords.x, endCoords.y].GetComponent<SpriteRenderer>().color = Color.red;
-
-        TracePath();
-
-        // Automatically scale the camera perspective based on the grid height
-        Camera.main.orthographicSize = (height / 2f) + 1f;
     }
 
     void GenerateGrid()
@@ -71,7 +101,6 @@ public class GridManager : MonoBehaviour
                 // Randomly select a hazard variant if constraints match
                 if (Random.value < hazardChance && !IsStartOrEnd(x, y))
                 {
-                    // Random choice mapping to the updated TileType enum sequence (skipping 'Normal' at 0)
                     int randomHazard = Random.Range(1, System.Enum.GetValues(typeof(TileProperty.TileType)).Length);
                     TileProperty.TileType targetType = (TileProperty.TileType)randomHazard;
 
@@ -97,12 +126,10 @@ public class GridManager : MonoBehaviour
 
                 if (tileScript != null)
                 {
-                    // Assign coordinate address tracking values
                     tileScript.gridX = x;
                     tileScript.gridY = y;
                     allTiles[x, y] = tileScript;
 
-                    // Determine and assign orientation rules
                     TileRotation.Direction finalDir;
 
                     if (x == startCoords.x && y == startCoords.y)
@@ -122,7 +149,6 @@ public class GridManager : MonoBehaviour
                     newTile.transform.eulerAngles = new Vector3(0, 0, (int)finalDir * -90f);
                 }
 
-                // Activate Goal Indicator overlay if it matches the destination node
                 if (x == endCoords.x && y == endCoords.y)
                 {
                     Transform goal = newTile.transform.Find("GoalIndicator");
@@ -142,44 +168,64 @@ public class GridManager : MonoBehaviour
         Vector2Int currentPos = startCoords;
         bool goalReached = false;
 
-        // Limit loop iterations to prevent infinite crashes
         for (int i = 0; i < (width * height); i++)
         {
-            // 1. Boundary integrity safety check
             if (currentPos.x < 0 || currentPos.x >= width || currentPos.y < 0 || currentPos.y >= height)
             {
-                Debug.Log("Path went out of bounds!");
                 break;
             }
 
             TileRotation currentTile = allTiles[currentPos.x, currentPos.y];
 
-            // 2. Loop repetition catch
             if (pathList.Contains(currentTile))
             {
-                Debug.Log("Infinite Loop detected!");
                 break;
             }
 
             pathList.Add(currentTile);
             currentPathWorldPositions.Add(currentTile.transform.position);
 
-            // 3. Goal objective check
             if (currentPos == endCoords)
             {
                 goalReached = true;
                 break;
             }
 
-            // 4. Update coordinates based on exit vectors
             currentPos = GetNextCoords(currentPos, currentTile.currentDirection);
-            Debug.Log($"Tracer at {currentPos} is moving {currentTile.currentDirection}");
         }
 
         HighlightPath(pathList);
 
-        if (goalReached) Debug.Log("Path to Goal is VALID!");
-        else Debug.Log("Path is incomplete.");
+        bool lengthValid = pathList.Count >= minPathLength && pathList.Count <= maxPathLength;
+
+        bool checkpointsValid = true;
+        foreach (Vector2Int checkpoint in mandatoryCheckpoints)
+        {
+            bool matchFound = false;
+            foreach (TileRotation node in pathList)
+            {
+                if (node.gridX == checkpoint.x && node.gridY == checkpoint.y)
+                {
+                    matchFound = true;
+                    break;
+                }
+            }
+            if (!matchFound)
+            {
+                checkpointsValid = false;
+                break;
+            }
+        }
+
+        isCurrentPathValid = goalReached && lengthValid && checkpointsValid;
+
+        if (!goalReached) pathValidationErrorMessage = "❌ PATH INCOMPLETE: Route does not reach base!";
+        else if (pathList.Count < minPathLength) pathValidationErrorMessage = $"❌ PATH TOO SHORT: Minimum length is {minPathLength} tiles (Current: {pathList.Count}).";
+        else if (pathList.Count > maxPathLength) pathValidationErrorMessage = $"❌ PATH TOO LONG: Maximum length is {maxPathLength} tiles (Current: {pathList.Count}).";
+        else if (!checkpointsValid) pathValidationErrorMessage = "❌ MISSING CHECKPOINTS: Route bypasses mandatory waypoint tile markers!";
+        else pathValidationErrorMessage = "✅ PATH STABLE & SECURE";
+
+        Debug.Log($"[PATH CONSTRAINTS LOG] Validation State: {isCurrentPathValid.ToString().ToUpper()} | Message: {pathValidationErrorMessage}");
     }
 
     Vector2Int GetNextCoords(Vector2Int pos, TileRotation.Direction dir)
@@ -202,14 +248,12 @@ public class GridManager : MonoBehaviour
             {
                 bool isPath = path.Contains(tile);
 
-                // ONLY change color to yellow if it is a running path element AND a Normal tile type.
                 if (isPath && tp.type == TileProperty.TileType.Normal)
                 {
                     tile.GetComponent<SpriteRenderer>().color = Color.yellow;
                 }
                 else
                 {
-                    // Revert non-path or hazard tiles cleanly back to native colors
                     tp.RefreshVisuals(false);
                 }
             }
@@ -218,36 +262,25 @@ public class GridManager : MonoBehaviour
 
     public void SwapTiles(TileRotation scriptA, TileRotation scriptB)
     {
-        // 1. Safety Gate Check
         if (scriptA == null || scriptB == null) return;
         if (IsStartOrEnd(scriptA.gridX, scriptA.gridY) || IsStartOrEnd(scriptB.gridX, scriptB.gridY)) return;
 
-        // Cache original placement keys
-        int ax = scriptA.gridX;
-        int ay = scriptA.gridY;
-        int bx = scriptB.gridX;
-        int by = scriptB.gridY;
+        int ax = scriptA.gridX; int ay = scriptA.gridY;
+        int bx = scriptB.gridX; int by = scriptB.gridY;
 
-        // 2. Swap Physical World Positions
         Vector3 tempPos = scriptA.transform.position;
         scriptA.transform.position = scriptB.transform.position;
         scriptB.transform.position = tempPos;
 
-        // 3. Swap Internal Address Memory Variables
-        scriptA.gridX = bx;
-        scriptA.gridY = by;
-        scriptB.gridX = ax;
-        scriptB.gridY = ay;
+        scriptA.gridX = bx; scriptA.gridY = by;
+        scriptB.gridX = ax; scriptB.gridY = ay;
 
-        // 4. Update the Master Matrix Pointer Map
         allTiles[ax, ay] = scriptB;
         allTiles[bx, by] = scriptA;
 
-        // 5. Update Hierarchy Names for Clearer Inspector Debugging
         scriptA.name = $"Tile_{bx}_{by}";
         scriptB.name = $"Tile_{ax}_{ay}";
 
-        // 6. Force Dynamic Grid Direction Re-calculation
         TracePath();
 
         Debug.Log($"[GRID SUCCESS] Physically swapped {scriptA.name} with {scriptB.name}");
@@ -280,5 +313,41 @@ public class GridManager : MonoBehaviour
     bool IsStartOrEnd(int x, int y)
     {
         return (x == startCoords.x && y == startCoords.y) || (x == endCoords.x && y == endCoords.y);
+    }
+
+    /// <summary>
+    /// Invoked dynamically by GameManager to advance level setup phases
+    /// </summary>
+    public void GenerateNewWaveConstraints(int waveNumber)
+    {
+        // 1. Scale path boundaries dynamically based on our 15x15 calibration parameters
+        switch (waveNumber)
+        {
+            case 1: minPathLength = 15; maxPathLength = 30; break;
+            case 2: minPathLength = 16; maxPathLength = 35; break;
+            case 3: minPathLength = 18; maxPathLength = 40; break;
+            case 4: minPathLength = 20; maxPathLength = 50; break;
+            default: minPathLength = 22; maxPathLength = 60; break;
+        }
+
+        // 2. Clear out legacy checkpoints
+        mandatoryCheckpoints.Clear();
+
+        // 3. Select a new randomized mandatory midpoint checkpoint targeting middle columns (columns 3 to 11)
+        int safetyTimeoutAttempts = 0;
+        while (mandatoryCheckpoints.Count < 1 && safetyTimeoutAttempts < 200)
+        {
+            safetyTimeoutAttempts++;
+            int rx = Random.Range(3, width - 3);
+            int ry = Random.Range(1, height - 1);
+
+            if (!IsStartOrEnd(rx, ry))
+            {
+                mandatoryCheckpoints.Add(new Vector2Int(rx, ry));
+            }
+        }
+
+        // 4. Force calculation pass to update current UI warning error flags instantly
+        TracePath();
     }
 }

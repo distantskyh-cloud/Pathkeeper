@@ -10,6 +10,14 @@ public class GameManager : MonoBehaviour
     [Tooltip("Toggle this via the Dev UI to enable or completely lock tile selection interactions.")]
     public bool isTileSwitchingEnabled = true;
 
+    [Header("Economy Interaction Target")]
+    [Tooltip("The tile currently being highlighted by the SelectionManager.")]
+    public TileProperty selectedTileProperty;
+
+    // Economic price settings
+    public int tierUpgradeCost = 40;
+    public int morphHazardCost = 60;
+
     // Define the distinct game states
     public enum GameState { MainMenu, DifficultySelect, Gameplay, GameOver, Victory }
 
@@ -94,11 +102,20 @@ public class GameManager : MonoBehaviour
     {
         currentBaseHealth = maxBaseHealth;
         currentWave = 1;
+
         // Destroy any leftover enemies in the scene when restarting
         Enemy[] activeEnemies = FindObjectsOfType<Enemy>();
         foreach (Enemy enemy in activeEnemies)
         {
             Destroy(enemy.gameObject);
+        }
+
+        // --- STEP 3 (A): INITIALIZE PUZZLE CONSTRAINTS ---
+        // Setup the baseline layout puzzle challenges for the very first wave!
+        GridManager gridRef = FindObjectOfType<GridManager>();
+        if (gridRef != null)
+        {
+            gridRef.GenerateNewWaveConstraints(1);
         }
     }
 
@@ -155,19 +172,38 @@ public class GameManager : MonoBehaviour
     {
         currentWave++;
         Debug.Log($"[WAVE UPDATE] Starting Wave {currentWave}/{totalWaves}");
+
         if (currentWave > totalWaves)
         {
             ChangeState(GameState.Victory);
         }
+        else
+        {
+            // --- STEP 3 (B): RE-RANDOMIZE PUZZLE CONSTRAINTS FOR NEXT ROUND ---
+            // Triggers fresh mandatory checkpoint and grid size bounds between rounds
+            GridManager gridRef = FindObjectOfType<GridManager>();
+            if (gridRef != null)
+            {
+                gridRef.GenerateNewWaveConstraints(currentWave);
+            }
+        }
     }
 
-    // --- TEMPORARY SCREEN DRAFTING UI ---
-    // This renders raw buttons on the screen so you can completely bypass UI designs for now.
     void OnGUI()
     {
-        // --- STATE-ADAPTIVE MASTER BOX PANEL ---
-        // Width reduced by 10 (now 220). Height scales automatically based on what screen you are looking at!
-        int panelHeight = (currentState == GameState.Gameplay) ? 225 : 150;
+        GridManager gridRef = FindObjectOfType<GridManager>();
+        bool isPathValid = (gridRef != null) ? gridRef.isCurrentPathValid : true;
+
+        // --- MASTER HEIGHT CALCULATION ---
+        // Dynamically scales panel box height to accommodate error messages and selected tile parameters cleanly
+        int panelHeight = 150; // Menu baseline height default
+        if (currentState == GameState.Gameplay)
+        {
+            panelHeight = 245; // Baseline gameplay stats dimensions
+            if (!isPathValid) panelHeight += 20; // Room for validation warning labels
+            if (selectedTileProperty != null) panelHeight += 115; // Room for upgrade sub-menus
+        }
+
         GUI.Box(new Rect(15, 15, 220, panelHeight), $"⚙️ DEV SYSTEM [{currentState.ToString().ToUpper()}]");
 
         // ==========================================
@@ -177,43 +213,107 @@ public class GameManager : MonoBehaviour
         {
             // --- SECTION 1: MATCH STATS ---
             GUI.Label(new Rect(25, 40, 200, 22), $"Difficulty: {selectedDifficultyName.ToUpper()}");
-            GUI.Label(new Rect(25, 60, 200, 22), $"Base HP: {currentBaseHealth} / {maxBaseHealth}");
-            GUI.Label(new Rect(25, 80, 200, 22), $"Wave: {currentWave} / {totalWaves}");
+            GUI.Label(new Rect(25, 60, 200, 22), $"❤️ Base HP: {currentBaseHealth} / {maxBaseHealth}");
+            GUI.Label(new Rect(25, 80, 200, 22), $"⚔️ Wave: {currentWave} / {totalWaves}");
 
-            // NEW ECONOMY TRACKER DISPLAY
             int currentGold = EconomyManager.Instance != null ? EconomyManager.Instance.GetCurrentGold() : 0;
-            GUI.Label(new Rect(25, 100, 200, 22), $"Current Gold: {currentGold}g");
+            GUI.Label(new Rect(25, 100, 200, 22), $"💰 Current Gold: {currentGold}g");
 
-            // --- SECTION 2: WAVE CONTROL BUTTON ---
+            // --- STEP 3 (C): PATH CONSTRAINTS DISPLAYER & GATEKEEPER ---
+            int runningYOffset = 125;
+
             if (spawnerScript == null) spawnerScript = FindObjectOfType<EnemySpawner>();
 
             if (spawnerScript != null && !spawnerScript.IsWaveRunning())
             {
+                // If the map path violates rules, render the error text string in bright red
+                if (!isPathValid && gridRef != null)
+                {
+                    GUI.color = Color.red;
+                    GUI.Label(new Rect(25, runningYOffset, 200, 22), gridRef.pathValidationErrorMessage);
+                    GUI.color = Color.white;
+
+                    runningYOffset += 22; // Offset positions downwards to prevent drawing on buttons
+                    GUI.enabled = false;   // LOCKS the button so clicking it does nothing!
+                }
+
                 string spawnButtonText = (spawnerScript.currentWaveIndex == 0 && spawnerScript.currentEnemyIndex == 0) ? "🚀 START WAVE 1" : "▶️ START NEXT WAVE";
-                if (GUI.Button(new Rect(25, 130, 200, 25), spawnButtonText))
+                if (GUI.Button(new Rect(25, runningYOffset, 200, 25), spawnButtonText))
                 {
                     spawnerScript.StartWave(spawnerScript.currentWaveIndex);
                 }
+                GUI.enabled = true; // Safely unlock interactive elements for sections following it
             }
             else
             {
                 GUI.enabled = false;
-                GUI.Button(new Rect(25, 130, 200, 25), "🔒 WAVE IN PROGRESS...");
+                GUI.Button(new Rect(25, runningYOffset, 200, 25), "🔒 WAVE IN PROGRESS...");
                 GUI.enabled = true;
             }
 
+            runningYOffset += 30; // Move forward to the swap options segment
+
             // --- SECTION 3: TILE SWAPPING TOGGLE ---
             string toggleText = isTileSwitchingEnabled ? "🟢 SWAPPING: ALLOWED" : "🔴 SWAPPING: LOCKED";
-            if (GUI.Button(new Rect(25, 170, 200, 25), toggleText))
+            if (GUI.Button(new Rect(25, runningYOffset, 200, 25), toggleText))
             {
                 isTileSwitchingEnabled = !isTileSwitchingEnabled;
-                Debug.Log($"[DEV TOOL] Tile swapping state changed! Allowed = {isTileSwitchingEnabled}");
             }
 
+            runningYOffset += 35; // Move down for utility rows
+
             // --- SECTION 4: CHEATS & UTILITIES ---
-            // Side-by-side buttons split the 200px width perfectly (95px each with a 10px gap)
-            if (GUI.Button(new Rect(25, 205, 95, 25), "💥 Hit Base")) DamageBase(5);
-            if (GUI.Button(new Rect(130, 205, 95, 25), "⏭️ Skip Wave")) AdvanceWave();
+            if (GUI.Button(new Rect(25, runningYOffset, 95, 25), "💥 Hit Base")) DamageBase(5);
+            if (GUI.Button(new Rect(130, runningYOffset, 95, 25), "⏭️ Skip Wave")) AdvanceWave();
+
+            runningYOffset += 35;
+
+            // ==========================================
+            // DYNAMIC CONTEXT MENU: TILE UPGRADE OVERLAY
+            // ==========================================
+            if (selectedTileProperty != null)
+            {
+                // Visual dividing line
+                GUI.Box(new Rect(20, runningYOffset, 210, 3), "");
+                runningYOffset += 10;
+
+                GUI.Label(new Rect(25, runningYOffset, 200, 22), $"🎯 Target: {selectedTileProperty.type.ToString().ToUpper()}");
+                runningYOffset += 20;
+                GUI.Label(new Rect(25, runningYOffset, 200, 22), $"⭐ Current Strength: Tier {selectedTileProperty.currentTier}");
+                runningYOffset += 25;
+
+                // BUTTON A: UPGRADE TIER
+                bool canUpgrade = selectedTileProperty.currentTier < TileProperty.maxTier;
+                string upgradeText = canUpgrade ? $"🔺 Upgrade Tier (-{tierUpgradeCost}g)" : "🔺 MAX STRENGTH";
+
+                if (!canUpgrade || currentGold < tierUpgradeCost) GUI.enabled = false;
+                if (GUI.Button(new Rect(25, runningYOffset, 200, 25), upgradeText))
+                {
+                    if (EconomyManager.Instance.SpendGold(tierUpgradeCost))
+                    {
+                        selectedTileProperty.UpgradeTileTier();
+                    }
+                }
+                GUI.enabled = true;
+                runningYOffset += 30;
+
+                // BUTTON B: MORPH TILE TYPE
+                string morphText = $"🎲 Morph Element (-{morphHazardCost}g)";
+                if (currentGold < morphHazardCost || selectedTileProperty.type == TileProperty.TileType.Normal) GUI.enabled = false;
+
+                if (GUI.Button(new Rect(25, runningYOffset, 200, 25), morphText))
+                {
+                    if (EconomyManager.Instance.SpendGold(morphHazardCost))
+                    {
+                        int totalTypes = System.Enum.GetValues(typeof(TileProperty.TileType)).Length;
+                        int randomTypeIndex = Random.Range(1, totalTypes); // Skip normal
+                        selectedTileProperty.type = (TileProperty.TileType)randomTypeIndex;
+                        selectedTileProperty.RefreshVisuals(isHighlighted: false);
+                        Debug.Log($"[DYNAMISM] Morphed element target into: {selectedTileProperty.type}");
+                    }
+                }
+                GUI.enabled = true;
+            }
         }
         // ==========================================
         // 2. MAIN MENU STATE

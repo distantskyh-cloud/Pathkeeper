@@ -60,6 +60,25 @@ public class TileProperty : MonoBehaviour
         }
     }
 
+    // NEW METHOD: Increases tier and scales up the hazard potency
+    public void UpgradeTileTier()
+    {
+        if (currentTier >= maxTier) return;
+
+        currentTier++;
+
+        // Scale up the properties of this tile by 50% per tier upgrade
+        currentData.damage *= 1.5f;
+        currentData.dotDamage *= 1.5f;
+
+        // If it's a slow tile, make the speed multiplier stronger (closer to 0)
+        if (type == TileType.Slow && currentData.speedMult > 0.2f)
+        {
+            currentData.speedMult -= 0.1f;
+        }
+
+        Debug.Log($"[UPGRADE SUCCESS] upgraded {gameObject.name} to Tier {currentTier}! Damage scaled up.");
+    }
 
 
     // Consolidated from TileTrigger.cs: The tile now applies its own hazard rules directly
