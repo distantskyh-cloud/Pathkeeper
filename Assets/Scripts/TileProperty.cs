@@ -65,6 +65,8 @@ public class TileProperty : MonoBehaviour
     {
         if (currentTier >= maxTier) return;
 
+
+
         currentTier++;
 
         // Scale up the properties of this tile by 50% per tier upgrade
@@ -81,15 +83,28 @@ public class TileProperty : MonoBehaviour
     }
 
 
-    // Consolidated from TileTrigger.cs: The tile now applies its own hazard rules directly
     private void OnTriggerEnter2D(Collider2D collision)
     {
         Enemy enemy = collision.GetComponent<Enemy>();
 
         if (enemy != null)
         {
+            // SAFEGUARD: Track tile address to protect the starting coordinate zone
+            GridManager grid = FindObjectOfType<GridManager>();
+            TileRotation tr = GetComponent<TileRotation>();
+            if (tr == null) tr = GetComponentInParent<TileRotation>();
+
+            if (grid != null && tr != null && tr.gridX == grid.startCoords.x && tr.gridY == grid.startCoords.y)
+            {
+                return; // Spawn protection active
+            }
+
+            string coordsString = (tr != null) ? $"({tr.gridX}, {tr.gridY})" : "(Unknown Coords)";
+
+            // LIVE HAZARD DIAGNOSTIC TRACKER
+            Debug.Log($"<color=#FF4500>[STEPPED ON TILE] Enemy '{enemy.gameObject.name}' stepped on {type} Tile at grid {coordsString}. Payload Data -> Direct Dmg: {currentData.damage}, DoT/Sec: {currentData.dotDamage}, Slow: {currentData.speedMult}</color>");
+
             enemy.ApplyTileHazard(currentData);
-            // Debug.Log($"[INTERACTION] Enemy ({enemy.currentClass}) stepped on tile prefab: {type}");
         }
     }
 
@@ -98,6 +113,20 @@ public class TileProperty : MonoBehaviour
         SpriteRenderer sr = GetComponent<SpriteRenderer>();
         if (sr == null) sr = GetComponentInChildren<SpriteRenderer>();
         if (sr == null) return;
+
+        // CHECKPOINT COLOR PROTECTION LAYER
+        GridManager grid = FindObjectOfType<GridManager>();
+        if (grid != null && grid.mandatoryCheckpoints.Count > 0)
+        {
+            TileRotation tr = GetComponent<TileRotation>();
+            if (tr == null) tr = GetComponentInParent<TileRotation>();
+
+            if (tr != null && grid.mandatoryCheckpoints.Contains(new Vector2Int(tr.gridX, tr.gridY)))
+            {
+                sr.color = Color.cyan;
+                return; // Interrupt path rendering calculations so Cyan stays completely locked in
+            }
+        }
 
         if (isHighlighted)
         {

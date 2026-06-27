@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems; // Add this if it's missing!
 
 public class SelectionManager : MonoBehaviour
 {
@@ -9,21 +10,22 @@ public class SelectionManager : MonoBehaviour
 
     void Update()
     {
-        // FAILSAFE 2: Check our new GameManager developer toggle button before running selection math!
-        if (GameManager.Instance != null && !GameManager.Instance.isTileSwitchingEnabled)
-        {
-            // If the developer turned off tile switching via the Dev GUI, clear selections and exit
-            if (firstSelected != null)
-            {
-                ResetTileVisual(firstSelected);
-                firstSelected = null;
-            }
-            return;
-        }
-
         // Left Click
         if (Input.GetMouseButtonDown(0))
         {
+            // 1. If the mouse is hovering over a modern UI Canvas element, ignore world selection
+            if (UnityEngine.EventSystems.EventSystem.current != null &&
+                UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+            {
+                return;
+            }
+
+            // 2. SAFEGUARD: Ask GameManager if the mouse is currently hovering inside the active IMGUI box
+            if (GameManager.Instance != null && GameManager.Instance.IsMouseOverUserInterface())
+            {
+                return; // Let OnGUI process the buttons safely!
+            }
+
             HandleSelection();
         }
     }
@@ -40,81 +42,104 @@ public class SelectionManager : MonoBehaviour
             {
                 ResetTileVisual(firstSelected);
                 firstSelected = null;
+
+                // Clear the global inspector view when clicking empty space
+                if (GameManager.Instance != null)
+                    GameManager.Instance.selectedTileProperty = null;
+
                 Debug.Log("[SELECTION] Clicked empty space. Cleared active selection.");
             }
             return;
         }
 
-        TileRotation clickedTile = hitCollider.GetComponentInParent<TileRotation>();
-        if (clickedTile == null) clickedTile = hitCollider.GetComponentInChildren<TileRotation>();
+        TileRotation clickedTile = hitCollider.GetComponent<TileRotation>();
+        if (clickedTile == null) clickedTile = hitCollider.GetComponentInParent<TileRotation>();
 
         if (clickedTile != null)
         {
-            // --- FAILSAFE 1: START & END POINTS PROTECTION ---
-            GridManager gridManager = FindObjectOfType<GridManager>();
-            if (gridManager != null)
+            // SAFEGUARD: If this is the starting portal tile, reject the click completely!
+            // This prevents the start tile from being selected, upgraded, morphed, or swapped.
+            GridManager grid = FindObjectOfType<GridManager>();
+            if (grid != null && clickedTile.gridX == grid.startCoords.x && clickedTile.gridY == grid.startCoords.y)
             {
-                Vector2Int clickedCoords = new Vector2Int(clickedTile.gridX, clickedTile.gridY);
-
-                if (clickedCoords == gridManager.startCoords || clickedCoords == gridManager.endCoords)
-                {
-                    Debug.LogWarning($"[SELECTION DENIED] Tile at ({clickedTile.gridX}, {clickedTile.gridY}) is a critical Start or End zone and cannot be moved!");
-                    return; // Stop processing this selection completely!
-                }
+                Debug.Log("[UX PROTECT] Start portal tile cannot be selected or modified.");
+                return;
             }
-            // --------------------------------------------------
+        }
 
-            // CASE 1: This is the very first tile being selected
+            if (clickedTile != null)
+        {
+            // -------------------------------------------------------------
+            // CASE A: FIRST TIME SELECTING A TILE (Nothing was selected yet)
+            // -------------------------------------------------------------
             if (firstSelected == null)
             {
                 firstSelected = clickedTile;
+                ApplySelectionTint(firstSelected, selectionHighlightColor);
 
-                // --- NEW BRIDGE HOOK ---
-                // Push this script target reference directly to the GameManager UI!
                 if (GameManager.Instance != null)
-                {
                     GameManager.Instance.selectedTileProperty = firstSelected.GetComponent<TileProperty>();
-                }
-                // ------------------------
 
-                SpriteRenderer sr = firstSelected.GetComponent<SpriteRenderer>();
-                if (sr == null) sr = firstSelected.GetComponentInChildren<SpriteRenderer>();
-                if (sr != null) sr.color = selectionHighlightColor;
-
-                Debug.Log($"[SELECTION] First tile selected at coordinate: {firstSelected.gridX}, {firstSelected.gridY}");
+                Debug.Log($"[SELECTION] Primary tile selected at {firstSelected.gridX}, {firstSelected.gridY}. Ready for inspection/upgrade.");
             }
-            // CASE 2: Deselect Same Tile
+            // -------------------------------------------------------------
+            // CASE B: CLICKING THE EXACT SAME TILE AGAIN (Deselect it)
+            // -------------------------------------------------------------
             else if (firstSelected == clickedTile)
             {
                 ResetTileVisual(firstSelected);
                 firstSelected = null;
 
-                // Clear the active GUI context target
                 if (GameManager.Instance != null)
-                {
                     GameManager.Instance.selectedTileProperty = null;
-                }
+
+                Debug.Log("[SELECTION] Clicked the active selection again. Deselecting.");
             }
-            // CASE 3: A second, distinct tile was clicked -> Perform the swap!
+            // -------------------------------------------------------------
+            // CASE C: CLICKING A DIFFERENT TILE WHILE ONE IS ALREADY HIGHLIGHTED
+            // -------------------------------------------------------------
             else
             {
+                // SAFETY INTERCEPT: If switching is disabled, block the swap and switch inspection focus instead!
+                if (GameManager.Instance != null && !GameManager.Instance.isTileSwitchingEnabled)
+                {
+                    Debug.Log("[UX PROTECT] Switching disabled. Diverting swap attempt to a fresh tile selection instead.");
+
+                    // 1. Un-highlight the old tile visual back to normal
+                    ResetTileVisual(firstSelected);
+
+                    // 2. Assign the newly clicked tile as the active selection
+                    firstSelected = clickedTile;
+                    ApplySelectionTint(firstSelected, selectionHighlightColor);
+
+                    // 3. Point the GameManager inspector panel to the new tile properties
+                    GameManager.Instance.selectedTileProperty = firstSelected.GetComponent<TileProperty>();
+                    return; // Exit here safely! No money spent, no swap executed.
+                }
+
+                // =========================================================================
+                // NORMAL SWAP REORGANIZATION MODE (Only runs when isTileSwitchingEnabled is true)
+                // =========================================================================
                 Debug.Log($"[SELECTION] Second tile selected at {clickedTile.gridX}, {clickedTile.gridY}. Checking transaction parameters.");
 
-                int swapCost = 10; // Customize your swap cost balancing here!
+                int swapCost = 10;
 
-                // Verify the player has the money available before running calculations
+                // Verify gold balance
                 if (EconomyManager.Instance != null && !EconomyManager.Instance.CanAfford(swapCost))
                 {
                     Debug.LogWarning($"[ECONOMY TRANSACTION DENIED] Swapping tiles costs {swapCost}g. You can't afford this!");
                     ResetTileVisual(firstSelected);
                     firstSelected = null;
+
+                    if (GameManager.Instance != null)
+                        GameManager.Instance.selectedTileProperty = null;
+
                     return;
                 }
 
                 GridManager grid = FindObjectOfType<GridManager>();
                 if (grid != null)
                 {
-                    // Spend the gold. If successful, authorize the physical asset swap!
                     if (EconomyManager.Instance != null && EconomyManager.Instance.SpendGold(swapCost))
                     {
                         grid.SwapTiles(firstSelected, clickedTile);
@@ -122,7 +147,7 @@ public class SelectionManager : MonoBehaviour
                     }
                 }
 
-                // Reset the visual tint on the first tile back to its original hazard color after swapping
+                // Clear layout highlights after a successful swap execution pass
                 ResetTileVisual(firstSelected);
                 firstSelected = null;
             }

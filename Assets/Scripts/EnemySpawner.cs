@@ -62,7 +62,7 @@ public class EnemySpawner : MonoBehaviour
                     isWaveActive = false;
                     Debug.Log($"[WAVE CLEAN CLEAR] All enemies from {currentWave.waveName} have been defeated!");
 
-                    // NEW ECONOMY REWARD HOOK: Payout end-of-wave completion bonuses
+                    // Payout end-of-wave completion bonuses
                     if (EconomyManager.Instance != null)
                     {
                         int completionBonus = 50;
@@ -70,9 +70,17 @@ public class EnemySpawner : MonoBehaviour
                         Debug.Log($"[ECONOMY] Awarded +{completionBonus}g Wave Clear Payout!");
                     }
 
-                    // Preparation phase setup: Prepare the index tracker for the NEXT round ahead
-                    currentWaveIndex++;
+                    // Reset enemy spawning sequence index tracking parameters
                     currentEnemyIndex = 0;
+
+                    // ADVANCE THE SPAWNER TRACKER INDEX: Prepare it for the next wave configuration ahead
+                    currentWaveIndex++;
+
+                    // MANDATORY PIPELINE LINK: Tell GameManager the round has been cleared naturally!
+                    if (GameManager.Instance != null)
+                    {
+                        GameManager.Instance.AdvanceWave();
+                    }
                 }
             }
         }

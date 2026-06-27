@@ -22,7 +22,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5393119438338217018, guid: bcd618dc281099149b84e43bd923ae3c, type: 3}
       propertyPath: type
-      value: 2
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5393119438338217018, guid: bcd618dc281099149b84e43bd923ae3c, type: 3}
       propertyPath: currentData.duration

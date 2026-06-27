@@ -166,12 +166,12 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Placeholder loop mechanism to test moving to a victory screen
+    /// Core progression pipeline that advances level setup phases naturally or via dev skips
     /// </summary>
     public void AdvanceWave()
     {
         currentWave++;
-        Debug.Log($"[WAVE UPDATE] Starting Wave {currentWave}/{totalWaves}");
+        Debug.Log($"[WAVE UPDATE] Moving to Planning Phase for Wave {currentWave}/{totalWaves}");
 
         if (currentWave > totalWaves)
         {
@@ -179,13 +179,17 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            // --- STEP 3 (B): RE-RANDOMIZE PUZZLE CONSTRAINTS FOR NEXT ROUND ---
-            // Triggers fresh mandatory checkpoint and grid size bounds between rounds
+            // 1. RE-RANDOMIZE PUZZLE CONSTRAINTS FOR THE NEW PLANNING PHASE
             GridManager gridRef = FindObjectOfType<GridManager>();
             if (gridRef != null)
             {
                 gridRef.GenerateNewWaveConstraints(currentWave);
             }
+
+            // 2. STOP HERE! 
+            // We intentionally do NOT call spawnerScript.StartWave() anymore.
+            // The game will sit peacefully in the planning phase, letting the player
+            // inspect tiles, upgrade, morph, and fix their maze until they press the UI button.
         }
     }
 
@@ -195,11 +199,11 @@ public class GameManager : MonoBehaviour
         bool isPathValid = (gridRef != null) ? gridRef.isCurrentPathValid : true;
 
         // --- MASTER HEIGHT CALCULATION ---
-        // Dynamically scales panel box height to accommodate error messages and selected tile parameters cleanly
+        // Dynamically scales panel box height to accommodate error messages, metrics, and upgrade elements
         int panelHeight = 150; // Menu baseline height default
         if (currentState == GameState.Gameplay)
         {
-            panelHeight = 245; // Baseline gameplay stats dimensions
+            panelHeight = 310; // INCREASED FROM 245: Leaves a safe padding buffer for dynamic metrics rows
             if (!isPathValid) panelHeight += 20; // Room for validation warning labels
             if (selectedTileProperty != null) panelHeight += 115; // Room for upgrade sub-menus
         }
@@ -219,9 +223,40 @@ public class GameManager : MonoBehaviour
             int currentGold = EconomyManager.Instance != null ? EconomyManager.Instance.GetCurrentGold() : 0;
             GUI.Label(new Rect(25, 100, 200, 22), $"💰 Current Gold: {currentGold}g");
 
-            // --- STEP 3 (C): PATH CONSTRAINTS DISPLAYER & GATEKEEPER ---
-            int runningYOffset = 125;
+            // =========================================================================
+            // LIVE PATH GOAL HUD DISPLAY
+            // =========================================================================
+            int runningYOffset = 125; // Re-align starting height offset dynamically
 
+            if (gridRef != null)
+            {
+                // Draw a visual separator line
+                GUI.Box(new Rect(25, runningYOffset, 200, 2), "");
+                runningYOffset += 8;
+
+                // Grab active layout length step dimensions from world position list tracking arrays
+                int currentActiveLength = gridRef.currentPathWorldPositions.Count;
+
+                // Dynamically assert color feedback tags depending on length state parameters
+                string lengthColorTag = (currentActiveLength >= gridRef.minPathLength && currentActiveLength <= gridRef.maxPathLength)
+                    ? "<color=#00FF00>"  // Bright Green
+                    : "<color=#FFA500>"; // Warning Orange
+
+                GUIStyle dynamicRichTextStyle = new GUIStyle(GUI.skin.label) { richText = true };
+
+                GUI.Label(new Rect(25, runningYOffset, 200, 20), $"🔹 Min Required: {gridRef.minPathLength} tiles");
+                runningYOffset += 18;
+                GUI.Label(new Rect(25, runningYOffset, 200, 20), $"🔺 Max Required: {gridRef.maxPathLength} tiles");
+                runningYOffset += 18;
+                GUI.Label(new Rect(25, runningYOffset, 200, 20), $"📏 Current Path: {lengthColorTag}<b>{currentActiveLength}</b></color> tiles", dynamicRichTextStyle);
+                runningYOffset += 22;
+
+                // Draw a matching visual closing track line
+                GUI.Box(new Rect(25, runningYOffset, 200, 2), "");
+                runningYOffset += 10;
+            }
+
+            // --- SECTION 2: PATH CONSTRAINTS DISPLAYER & GATEKEEPER ---
             if (spawnerScript == null) spawnerScript = FindObjectOfType<EnemySpawner>();
 
             if (spawnerScript != null && !spawnerScript.IsWaveRunning())
@@ -287,6 +322,7 @@ public class GameManager : MonoBehaviour
                 string upgradeText = canUpgrade ? $"🔺 Upgrade Tier (-{tierUpgradeCost}g)" : "🔺 MAX STRENGTH";
 
                 if (!canUpgrade || currentGold < tierUpgradeCost) GUI.enabled = false;
+
                 if (GUI.Button(new Rect(25, runningYOffset, 200, 25), upgradeText))
                 {
                     if (EconomyManager.Instance.SpendGold(tierUpgradeCost))
@@ -294,25 +330,39 @@ public class GameManager : MonoBehaviour
                         selectedTileProperty.UpgradeTileTier();
                     }
                 }
-                GUI.enabled = true;
+                GUI.enabled = true; // Safely unlock status tracking
                 runningYOffset += 30;
 
                 // BUTTON B: MORPH TILE TYPE
                 string morphText = $"🎲 Morph Element (-{morphHazardCost}g)";
-                if (currentGold < morphHazardCost || selectedTileProperty.type == TileProperty.TileType.Normal) GUI.enabled = false;
+
+                // Allow Morphing at all times as long as they can afford it!
+                if (currentGold < morphHazardCost) GUI.enabled = false;
 
                 if (GUI.Button(new Rect(25, runningYOffset, 200, 25), morphText))
                 {
                     if (EconomyManager.Instance.SpendGold(morphHazardCost))
                     {
                         int totalTypes = System.Enum.GetValues(typeof(TileProperty.TileType)).Length;
-                        int randomTypeIndex = Random.Range(1, totalTypes); // Skip normal
+                        int randomTypeIndex = Random.Range(1, totalTypes); // Skips Normal (0), selects 1 to max hazard types
+
                         selectedTileProperty.type = (TileProperty.TileType)randomTypeIndex;
                         selectedTileProperty.RefreshVisuals(isHighlighted: false);
+
+                        // Fire grid updater pass so path recalculations match instantly
+                        if (gridRef != null) gridRef.TracePath();
+
                         Debug.Log($"[DYNAMISM] Morphed element target into: {selectedTileProperty.type}");
                     }
                 }
-                GUI.enabled = true;
+                GUI.enabled = true; // Safely unlock status tracking
+                runningYOffset += 30;
+
+                if (!isTileSwitchingEnabled)
+                {
+                    GUI.Label(new Rect(25, runningYOffset, 200, 22), "🔒 Layout Locked (Safe Upgrade Mode)");
+                    runningYOffset += 25;
+                }
             }
         }
         // ==========================================
@@ -351,5 +401,30 @@ public class GameManager : MonoBehaviour
             GUI.Label(new Rect(25, 50, 200, 30), "🏆 MAP CLEARED! 🏆");
             if (GUI.Button(new Rect(25, 85, 200, 35), "Play Again")) ChangeState(GameState.MainMenu);
         }
+    }
+
+    /// <summary>
+    /// Checks if the player's mouse cursor is hovering within the boundaries of the IMGUI command panels
+    /// </summary>
+    public bool IsMouseOverUserInterface()
+    {
+        if (currentState != GameState.Gameplay) return false;
+
+        // In Unity IMGUI, screen coordinates start at (0,0) from the TOP-LEFT of the screen.
+        // We flip the mouse's vertical position to match this orientation.
+        Vector2 mousePos = new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
+
+        // Define the exact dimensions of your left side panel bounding box
+        GridManager gridRef = FindObjectOfType<GridManager>();
+        bool isPathValid = (gridRef != null) ? gridRef.isCurrentPathValid : true;
+
+        int panelHeight = 310;
+        if (!isPathValid) panelHeight += 20;
+        if (selectedTileProperty != null) panelHeight += 115;
+
+        Rect uiPanelRect = new Rect(15, 15, 220, panelHeight);
+
+        // Returns true if the cursor is directly over the left panel, blocking selection raycasts
+        return uiPanelRect.Contains(mousePos);
     }
 }

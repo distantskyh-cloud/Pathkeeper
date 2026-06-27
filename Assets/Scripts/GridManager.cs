@@ -15,8 +15,8 @@ public class GridManager : MonoBehaviour
     public GameObject Tile_Curse;
 
     [Header("Grid Dimensions")]
-    public int width = 15; // Set via inspector or default to 15
-    public int height = 15; // Set via inspector or default to 15
+    public int width = 15;
+    public int height = 15;
 
     [Header("Level Balance")]
     [Range(0f, 1f)]
@@ -44,13 +44,13 @@ public class GridManager : MonoBehaviour
     {
         allTiles = new TileRotation[width, height];
 
-        // 1. Establish the very first baseline positions on startup
+        // 1. Establish the very first baseline portal positions on startup
         RandomizeSpawnAndEndPositions();
 
         // 2. Generate the visual world matrix layout
         GenerateGrid();
 
-        // 3. Apply starting color highlight identifiers
+        // 3. Apply starting color highlight identifiers (Green for Spawn, Red for Base)
         RefreshEdgeVisualMarkers();
 
         // 4. Trace our direction connections
@@ -60,9 +60,6 @@ public class GridManager : MonoBehaviour
         Camera.main.orthographicSize = (height / 2f) + 1f;
     }
 
-    /// <summary>
-    /// Helper logic to isolate edge node selection calculations cleanly
-    /// </summary>
     private void RandomizeSpawnAndEndPositions()
     {
         // Left side edge: Column 0, completely random row height allocation
@@ -74,9 +71,6 @@ public class GridManager : MonoBehaviour
         endCoords = new Vector2Int(width - 1, randomEndY);
     }
 
-    /// <summary>
-    /// Colors the start spawn green and the end base target destination red
-    /// </summary>
     private void RefreshEdgeVisualMarkers()
     {
         if (allTiles[startCoords.x, startCoords.y] != null)
@@ -179,7 +173,7 @@ public class GridManager : MonoBehaviour
 
             if (pathList.Contains(currentTile))
             {
-                break;
+                break; // Prevent infinite path looping recursion crash
             }
 
             pathList.Add(currentTile);
@@ -198,6 +192,7 @@ public class GridManager : MonoBehaviour
 
         bool lengthValid = pathList.Count >= minPathLength && pathList.Count <= maxPathLength;
 
+        // CHECKPOINT VALIDATION MECHANISM
         bool checkpointsValid = true;
         foreach (Vector2Int checkpoint in mandatoryCheckpoints)
         {
@@ -219,10 +214,11 @@ public class GridManager : MonoBehaviour
 
         isCurrentPathValid = goalReached && lengthValid && checkpointsValid;
 
+        // UI Feedback Text Assignment routing directly to GameManager Dev Panel
         if (!goalReached) pathValidationErrorMessage = "❌ PATH INCOMPLETE: Route does not reach base!";
         else if (pathList.Count < minPathLength) pathValidationErrorMessage = $"❌ PATH TOO SHORT: Minimum length is {minPathLength} tiles (Current: {pathList.Count}).";
         else if (pathList.Count > maxPathLength) pathValidationErrorMessage = $"❌ PATH TOO LONG: Maximum length is {maxPathLength} tiles (Current: {pathList.Count}).";
-        else if (!checkpointsValid) pathValidationErrorMessage = "❌ MISSING CHECKPOINTS: Route bypasses mandatory waypoint tile markers!";
+        else if (!checkpointsValid) pathValidationErrorMessage = "❌ MISSING CHECKPOINT: Route bypasses the required tile marker!";
         else pathValidationErrorMessage = "✅ PATH STABLE & SECURE";
 
         Debug.Log($"[PATH CONSTRAINTS LOG] Validation State: {isCurrentPathValid.ToString().ToUpper()} | Message: {pathValidationErrorMessage}");
@@ -242,6 +238,13 @@ public class GridManager : MonoBehaviour
         foreach (TileRotation tile in allTiles)
         {
             if (tile == null || IsStartOrEnd(tile.gridX, tile.gridY)) continue;
+
+            // Keep the active wave checkpoint colored cyan regardless of path tracking status
+            if (mandatoryCheckpoints.Contains(new Vector2Int(tile.gridX, tile.gridY)))
+            {
+                tile.GetComponent<SpriteRenderer>().color = Color.cyan;
+                continue;
+            }
 
             TileProperty tp = tile.GetComponent<TileProperty>();
             if (tp != null)
@@ -320,34 +323,74 @@ public class GridManager : MonoBehaviour
     /// </summary>
     public void GenerateNewWaveConstraints(int waveNumber)
     {
-        // 1. Scale path boundaries dynamically based on our 15x15 calibration parameters
-        switch (waveNumber)
+        // 1. CLEANUP PREVIOUS VISUALS SAFE PASS
+        if (mandatoryCheckpoints.Count > 0)
         {
-            case 1: minPathLength = 15; maxPathLength = 30; break;
-            case 2: minPathLength = 16; maxPathLength = 35; break;
-            case 3: minPathLength = 18; maxPathLength = 40; break;
-            case 4: minPathLength = 20; maxPathLength = 50; break;
-            default: minPathLength = 22; maxPathLength = 60; break;
-        }
-
-        // 2. Clear out legacy checkpoints
-        mandatoryCheckpoints.Clear();
-
-        // 3. Select a new randomized mandatory midpoint checkpoint targeting middle columns (columns 3 to 11)
-        int safetyTimeoutAttempts = 0;
-        while (mandatoryCheckpoints.Count < 1 && safetyTimeoutAttempts < 200)
-        {
-            safetyTimeoutAttempts++;
-            int rx = Random.Range(3, width - 3);
-            int ry = Random.Range(1, height - 1);
-
-            if (!IsStartOrEnd(rx, ry))
+            Vector2Int oldCP = mandatoryCheckpoints[0];
+            // Ensure bounds safety check inside our grid matrix array
+            if (oldCP.x >= 0 && oldCP.x < width && oldCP.y >= 0 && oldCP.y < height)
             {
-                mandatoryCheckpoints.Add(new Vector2Int(rx, ry));
+                if (allTiles[oldCP.x, oldCP.y] != null && !IsStartOrEnd(oldCP.x, oldCP.y))
+                {
+                    TileProperty tp = allTiles[oldCP.x, oldCP.y].GetComponent<TileProperty>();
+                    // Flush the entry cache checklist early so TileProperty doesn't lock it to Cyan
+                    mandatoryCheckpoints.Clear();
+                    if (tp != null) tp.RefreshVisuals(isHighlighted: false);
+                }
             }
         }
 
-        // 4. Force calculation pass to update current UI warning error flags instantly
+        mandatoryCheckpoints.Clear();
+
+        // 2. CHOOSE A NEW DYNAMIC TARGET MIDPOINT NODE
+        int safetyTimeoutAttempts = 0;
+        Vector2Int chosenCP = Vector2Int.zero;
+
+        while (mandatoryCheckpoints.Count < 1 && safetyTimeoutAttempts < 200)
+        {
+            safetyTimeoutAttempts++;
+            int rx = Random.Range(3, width - 3);   // Stays away from start/end edge columns
+            int ry = Random.Range(2, height - 2);  // Stays away from boundary walls
+
+            if (!IsStartOrEnd(rx, ry))
+            {
+                chosenCP = new Vector2Int(rx, ry);
+                mandatoryCheckpoints.Add(chosenCP);
+
+                // Instantly tint the live tile sprite asset to Cyan
+                if (allTiles[rx, ry] != null)
+                {
+                    allTiles[rx, ry].GetComponent<SpriteRenderer>().color = Color.cyan;
+                }
+            }
+        }
+
+        // 3. MANHATTAN DISTANCE BALANCE COMPENSATOR
+        // Computes absolute grid walking steps: Start -> Checkpoint -> End
+        int stepsFromStartToCP = Mathf.Abs(startCoords.x - chosenCP.x) + Mathf.Abs(startCoords.y - chosenCP.y);
+        int stepsFromCPToEnd = Mathf.Abs(chosenCP.x - endCoords.x) + Mathf.Abs(chosenCP.y - endCoords.y);
+        int absoluteMinimumRequiredSteps = stepsFromStartToCP + stepsFromCPToEnd + 1;
+
+        // Base incremental metrics per round level tier progression
+        switch (waveNumber)
+        {
+            case 1: minPathLength = 15; maxPathLength = 32; break;
+            case 2: minPathLength = 16; maxPathLength = 36; break;
+            case 3: minPathLength = 18; maxPathLength = 42; break;
+            case 4: minPathLength = 20; maxPathLength = 48; break;
+            default: minPathLength = 22; maxPathLength = 55; break;
+        }
+
+        // DYNAMIC BUFFER GATE: If the checkpoint spawned so far away that your max budget 
+        // makes a layout impossible, open up the ceiling buffer comfortably!
+        if (maxPathLength < (absoluteMinimumRequiredSteps + 8))
+        {
+            maxPathLength = absoluteMinimumRequiredSteps + 12; // Grants a clean 12-tile winding buffer to snake paths
+            Debug.Log($"[SAFETY COMPENSATOR] Checkpoint spawned distant. Adjusting maxPathLength dynamically to {maxPathLength} steps.");
+        }
+
+        // 4. Force a clean trace calculation to sync structural UI elements instantly
         TracePath();
     }
+
 }

@@ -15,8 +15,12 @@ public class TileTrigger : MonoBehaviour
 
         if (enemy != null && tileProperty != null)
         {
-            enemy.ApplyTileHazard(tileProperty.currentData);
-            // Debug.Log($"[INTERACTION] Enemy ({enemy.currentClass}) stepped on tile: {tileProperty.type}");
+            // Informational tracker only - we bypass calling ApplyTileHazard here to let TileProperty handle it cleanly!
+            TileRotation tr = GetComponent<TileRotation>();
+            if (tr == null) tr = GetComponentInParent<TileRotation>();
+            string coordsString = (tr != null) ? $"({tr.gridX}, {tr.gridY})" : "(Unknown Coords)";
+
+            Debug.Log($"<color=#708090>[TRIGGER PASS] Sub-collider read-out on {tileProperty.type} Tile at {coordsString} for '{enemy.gameObject.name}'.</color>");
         }
     }
 }
