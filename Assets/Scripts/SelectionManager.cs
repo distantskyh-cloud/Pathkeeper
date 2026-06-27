@@ -43,11 +43,7 @@ public class SelectionManager : MonoBehaviour
                 ResetTileVisual(firstSelected);
                 firstSelected = null;
 
-                // Clear the global inspector view when clicking empty space
-                if (GameManager.Instance != null)
-                    GameManager.Instance.selectedTileProperty = null;
-
-                Debug.Log("[SELECTION] Clicked empty space. Cleared active selection.");
+                if (GameManager.Instance != null) GameManager.Instance.selectedTileProperty = null;
             }
             return;
         }
@@ -57,15 +53,26 @@ public class SelectionManager : MonoBehaviour
 
         if (clickedTile != null)
         {
-            // SAFEGUARD: If this is the starting portal tile, reject the click completely!
-            // This prevents the start tile from being selected, upgraded, morphed, or swapped.
             GridManager grid = FindObjectOfType<GridManager>();
-            if (grid != null && clickedTile.gridX == grid.startCoords.x && clickedTile.gridY == grid.startCoords.y)
+            if (grid != null)
             {
-                Debug.Log("[UX PROTECT] Start portal tile cannot be selected or modified.");
-                return;
+                // SAFEGUARD 1: Reject selection if it's the starting portal tile
+                if (clickedTile.gridX == grid.startCoords.x && clickedTile.gridY == grid.startCoords.y)
+                {
+                    Debug.Log("[UX PROTECT] Start portal tile cannot be selected or modified.");
+                    return;
+                }
+
+                // SAFEGUARD 2: Reject selection if it's the end base tile
+                if (clickedTile.gridX == grid.endCoords.x && clickedTile.gridY == grid.endCoords.y)
+                {
+                    Debug.Log("[UX PROTECT] End base tile cannot be selected or modified.");
+                    return;
+                }
             }
         }
+
+            // ... Your remaining Case A, Case B, Case C swap logic continues exactly the same below here ...
 
             if (clickedTile != null)
         {

@@ -124,7 +124,7 @@ public class TileProperty : MonoBehaviour
             if (tr != null && grid.mandatoryCheckpoints.Contains(new Vector2Int(tr.gridX, tr.gridY)))
             {
                 sr.color = Color.cyan;
-                return; // Interrupt path rendering calculations so Cyan stays completely locked in
+                return;
             }
         }
 
@@ -134,6 +134,29 @@ public class TileProperty : MonoBehaviour
         }
         else
         {
+            // Keep the grey track color locked in if a wave is running and the tile is on the path
+            EnemySpawner spawner = FindObjectOfType<EnemySpawner>();
+            GridManager gridRef = FindObjectOfType<GridManager>();
+
+            if (spawner != null && spawner.IsWaveRunning() && gridRef != null)
+            {
+                TileRotation tr = GetComponent<TileRotation>();
+                if (tr == null) tr = GetComponentInParent<TileRotation>();
+
+                if (tr != null)
+                {
+                    // 1:1 grid to world translation matching your instantiation math
+                    Vector3 myWorldPos = new Vector3(tr.gridX, tr.gridY, 0f);
+
+                    if (gridRef.currentPathWorldPositions.Contains(myWorldPos))
+                    {
+                        sr.color = Color.gray;
+                        return; // Protect the visual overlay during active waves
+                    }
+                }
+            }
+
+            // Normal state color when the wave ends or for off-path tiles
             ApplyHexColor();
         }
     }
