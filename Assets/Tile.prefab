@@ -233,7 +233,7 @@ MonoBehaviour:
     vfxPrefab: {fileID: 8592920160562456687, guid: 707713b628f0d084eb5b6bb9cb51e21f, type: 3}
   - type: 5
     overlayImage: {fileID: 0}
-    overlayMaterial: {fileID: 0}
+    overlayMaterial: {fileID: 2100000, guid: 4ca454f732aedc24080e1cc35e0e4c9a, type: 2}
     vfxPrefab: {fileID: 0}
   - type: 6
     overlayImage: {fileID: 0}

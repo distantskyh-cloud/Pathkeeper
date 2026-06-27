@@ -77,7 +77,18 @@ public class GridManager : MonoBehaviour
             }
 
             pathList.Add(currentTile);
-            currentPathWorldPositions.Add(currentTile.transform.position);
+            
+            // Use the exact visual center of the tile for the line renderer
+            Vector3 tileCenter = currentTile.transform.position;
+            Transform triangle = currentTile.transform.Find("Triangle");
+            if (triangle != null)
+            {
+                tileCenter += triangle.localPosition;
+            }
+            
+            // Lift the line slightly above the tiles so it doesn't clip (Z = -0.5)
+            tileCenter.z = -0.5f;
+            currentPathWorldPositions.Add(tileCenter);
 
             // 3. Check if we reached the Goal
             if (currentPos == endCoords)
@@ -112,26 +123,19 @@ public class GridManager : MonoBehaviour
     {
         foreach (TileRotation tile in allTiles)
         {
-            // 1. If it's the start or end, do not alter its visuals/colors at all!
-            if (IsStartOrEnd(tile.gridX, tile.gridY)) continue;
-
+            // Always refresh visuals to remove any stale path highlights
             TileProperty tp = tile.GetComponent<TileProperty>();
             if (tp != null)
             {
-                bool isPath = path.Contains(tile);
-
-                // 2. ONLY color it yellow if it is part of the path AND it's a Normal tile.
-                // This ensures Spike, Burn, Slow, etc. keep their unique hazard colors!
-                if (isPath && tp.type == TileProperty.TileType.Normal)
-                {
-                    tp.SetTileColor(Color.yellow);
-                }
-                else
-                {
-                    // Revert non-path tiles back to their base colors
-                    tp.RefreshVisuals(false);
-                }
+                tp.RefreshVisuals(false);
             }
+        }
+        
+        // Notify the PathVisualizer to draw the new path
+        PathVisualizer visualizer = FindObjectOfType<PathVisualizer>();
+        if (visualizer != null)
+        {
+            visualizer.UpdatePath(currentPathWorldPositions);
         }
     }
 

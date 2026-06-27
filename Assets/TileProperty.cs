@@ -119,8 +119,19 @@ public class TileProperty : MonoBehaviour
                     {
                         // Spawn the VFX as a child of this tile
                         currentVFX = Instantiate(visual.vfxPrefab, transform);
-                        // Force it to center X/Y perfectly, but keep the Prefab's saved Z offset so it doesn't get buried!
-                        currentVFX.transform.localPosition = new Vector3(0, 0, visual.vfxPrefab.transform.position.z);
+                        
+                        // Discover the true visual center using the manually placed Triangle!
+                        Transform triangle = transform.Find("Triangle");
+                        if (triangle != null)
+                        {
+                            // Use the Triangle's perfectly centered local position!
+                            currentVFX.transform.localPosition = new Vector3(triangle.localPosition.x, triangle.localPosition.y, visual.vfxPrefab.transform.position.z);
+                        }
+                        else
+                        {
+                            // Fallback
+                            currentVFX.transform.localPosition = new Vector3(0, 0, visual.vfxPrefab.transform.position.z);
+                        }
                     }
 
                     break;
