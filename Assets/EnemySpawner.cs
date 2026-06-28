@@ -2,8 +2,11 @@ using UnityEngine;
 
 public class EnemySpawner : MonoBehaviour
 {
-    public GameObject enemyPrefab;
+    [Header("Enemy Prefabs")]
+    public GameObject[] enemyPrefabs;   // Drag multiple enemy prefabs here
+
     public float spawnInterval = 3f;
+
     private float timer;
     private GridManager gridManager;
 
@@ -13,17 +16,14 @@ public class EnemySpawner : MonoBehaviour
 
         if (gridManager == null)
         {
-            Debug.LogError("[SPAWNER ERROR] Could not find GridManager in the scene! Make sure it exists.");
-        }
-        else
-        {
-            Debug.Log("[SPAWNER INITIALIZED] Successfully linked to GridManager.");
+            Debug.LogError("[SPAWNER ERROR] Could not find GridManager!");
         }
     }
 
     void Update()
     {
         timer += Time.deltaTime;
+
         if (timer >= spawnInterval)
         {
             SpawnEnemy();
@@ -33,40 +33,43 @@ public class EnemySpawner : MonoBehaviour
 
     void SpawnEnemy()
     {
-        if (gridManager == null)
+        if (gridManager == null) return;
+
+        if (gridManager.currentPathWorldPositions == null ||
+            gridManager.currentPathWorldPositions.Count == 0)
         {
-            Debug.LogWarning("[SPAWNER SKIP] Cannot spawn enemy because GridManager is null.");
+            Debug.LogWarning("No valid path found.");
             return;
         }
 
-        if (gridManager.currentPathWorldPositions != null && gridManager.currentPathWorldPositions.Count > 0)
+        if (enemyPrefabs.Length == 0)
         {
-            Vector3 spawnPos = gridManager.currentPathWorldPositions[0];
-
-            // 1. Instantiate the object
-            GameObject enemy = Instantiate(enemyPrefab, spawnPos, Quaternion.identity);
-
-            // 2. Select a random class
-            Enemy.EnemyClass randomClass = (Enemy.EnemyClass)Random.Range(0, System.Enum.GetValues(typeof(Enemy.EnemyClass)).Length);
-
-            // 3. Setup and link scripts safely
-            Enemy enemyScript = enemy.GetComponent<Enemy>();
-            if (enemyScript == null) enemyScript = enemy.AddComponent<Enemy>();
-
-            EnemyPathFinding movementScript = enemy.GetComponent<EnemyPathFinding>();
-            if (movementScript == null) movementScript = enemy.AddComponent<EnemyPathFinding>();
-
-            // 4. Initialize parameters
-            enemyScript.InitializeEnemy(randomClass);
-            movementScript.SetPath(gridManager.currentPathWorldPositions, randomClass);
-
-            // --- TRACKING DEBUG LOG ---
-            Debug.Log($"[SPAWNER SUCCESS] Spawned {randomClass} at world coordinates: {spawnPos}. Path points count: {gridManager.currentPathWorldPositions.Count}");
+            Debug.LogWarning("No enemy prefabs assigned!");
+            return;
         }
-        else
-        {
-            // This will trigger if your path layout is broken or hasn't updated its list vectors yet
-            Debug.LogWarning($"[SPAWNER WARNING] Cannot spawn enemy. 'currentPathWorldPositions' is either null or empty! Count: {(gridManager.currentPathWorldPositions != null ? gridManager.currentPathWorldPositions.Count : -1)}");
-        }
+
+        Vector3 spawnPos = gridManager.currentPathWorldPositions[0];
+
+        // Pick a random prefab
+        GameObject selectedPrefab = enemyPrefabs[Random.Range(0, enemyPrefabs.Length)];
+
+        // Spawn it
+        GameObject enemy = Instantiate(selectedPrefab, spawnPos, Quaternion.identity);
+
+        // Get scripts
+        Enemy enemyScript = enemy.GetComponent<Enemy>();
+        EnemyPathFinding movementScript = enemy.GetComponent<EnemyPathFinding>();
+
+        if (enemyScript == null)
+            enemyScript = enemy.AddComponent<Enemy>();
+
+        if (movementScript == null)
+            movementScript = enemy.AddComponent<EnemyPathFinding>();
+
+        // Initialize using the prefab's assigned class
+        enemyScript.InitializeEnemy(enemyScript.currentClass);
+        movementScript.SetPath(gridManager.currentPathWorldPositions, enemyScript.currentClass);
+
+        Debug.Log($"Spawned {enemyScript.currentClass}");
     }
 }
