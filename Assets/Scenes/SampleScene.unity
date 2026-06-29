@@ -588,7 +588,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2eab5b75412e80343886a3c9b94268ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  enemyPrefab: {fileID: 2412594642971370078, guid: e4851098c369da743ac093c9a36f88b4, type: 3}
+  enemyPrefabs:
+  - {fileID: 8540458988642995894, guid: 468b9a9f7e119704cbab0959c2f84631, type: 3}
+  - {fileID: 7369055620615596366, guid: afe0fca43cacab442b779445f64813e1, type: 3}
+  - {fileID: 8254458821905212446, guid: 639de635c55526f4784e0bcd01da3d0a, type: 3}
   spawnInterval: 5
 --- !u!4 &1996314465
 Transform:

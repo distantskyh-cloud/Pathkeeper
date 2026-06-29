@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 688814102946755325}
   - component: {fileID: 1557359854337932670}
   - component: {fileID: 4142719604901172224}
-  - component: {fileID: 7283882857684198095}
+  - component: {fileID: 4279010833480796859}
   m_Layer: 0
   m_Name: Tanker
   m_TagString: Untagged
@@ -116,7 +116,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   speed: 1
---- !u!95 &7283882857684198095
+--- !u!95 &4279010833480796859
 Animator:
   serializedVersion: 5
   m_ObjectHideFlags: 0

@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 3181617184607697451}
   - component: {fileID: 8932259007275463943}
   - component: {fileID: 7215237387706499616}
-  - component: {fileID: 5615090695261310027}
+  - component: {fileID: 3596771311999676505}
   m_Layer: 0
   m_Name: Rouge
   m_TagString: Untagged
@@ -116,7 +116,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   speed: 1
---- !u!95 &5615090695261310027
+--- !u!95 &3596771311999676505
 Animator:
   serializedVersion: 5
   m_ObjectHideFlags: 0

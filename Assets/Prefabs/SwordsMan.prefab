@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 479347479619861410}
   - component: {fileID: 1190301586863211684}
   - component: {fileID: 3267543790231531169}
-  - component: {fileID: 7970661504560277243}
+  - component: {fileID: 7952913107415663298}
   m_Layer: 0
   m_Name: SwordsMan
   m_TagString: Untagged
@@ -116,7 +116,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   speed: 1
---- !u!95 &7970661504560277243
+--- !u!95 &7952913107415663298
 Animator:
   serializedVersion: 5
   m_ObjectHideFlags: 0
