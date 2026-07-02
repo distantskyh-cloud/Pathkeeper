@@ -16,7 +16,6 @@ public class TileProperty : MonoBehaviour
     public TileType type = TileType.Normal;
     public enum TileType { Normal, Slow, Burn, Freeze, Pitfall, Poison, Static, Bleed, Curse }
 
-    // NEW UPGRADE TRACKERS
     [Header("Upgrade Progression")]
     public int currentTier = 1;
     public const int maxTier = 3;
@@ -25,14 +24,19 @@ public class TileProperty : MonoBehaviour
 
     private void Awake()
     {
-        // Enforce trigger physics configuration natively on startup
         BoxCollider2D col = GetComponent<BoxCollider2D>();
         if (col != null) col.isTrigger = true;
+
+        // SAFETY FALLBACK: If speedMult is uninitialized (0) on a non-slowing/freeze tile,
+        // automatically default it to 1f so enemies can move normally.
+        if (currentData.speedMult == 0f && type != TileType.Slow && type != TileType.Freeze)
+        {
+            currentData.speedMult = 1f;
+        }
 
         ApplyHexColor();
     }
 
-    // UPDATED: This now reads the enum Type directly to apply the proper color automatically!
     private void ApplyHexColor()
     {
         SpriteRenderer sr = GetComponent<SpriteRenderer>();
@@ -60,20 +64,15 @@ public class TileProperty : MonoBehaviour
         }
     }
 
-    // NEW METHOD: Increases tier and scales up the hazard potency
     public void UpgradeTileTier()
     {
         if (currentTier >= maxTier) return;
 
-
-
         currentTier++;
 
-        // Scale up the properties of this tile by 50% per tier upgrade
         currentData.damage *= 1.5f;
         currentData.dotDamage *= 1.5f;
 
-        // If it's a slow tile, make the speed multiplier stronger (closer to 0)
         if (type == TileType.Slow && currentData.speedMult > 0.2f)
         {
             currentData.speedMult -= 0.1f;
@@ -82,29 +81,26 @@ public class TileProperty : MonoBehaviour
         Debug.Log($"[UPGRADE SUCCESS] upgraded {gameObject.name} to Tier {currentTier}! Damage scaled up.");
     }
 
-
     private void OnTriggerEnter2D(Collider2D collision)
     {
         Enemy enemy = collision.GetComponent<Enemy>();
 
         if (enemy != null)
         {
-            // SAFEGUARD: Track tile address to protect the starting coordinate zone
             GridManager grid = FindObjectOfType<GridManager>();
             TileRotation tr = GetComponent<TileRotation>();
             if (tr == null) tr = GetComponentInParent<TileRotation>();
 
             if (grid != null && tr != null && tr.gridX == grid.startCoords.x && tr.gridY == grid.startCoords.y)
             {
-                return; // Spawn protection active
+                return;
             }
 
             string coordsString = (tr != null) ? $"({tr.gridX}, {tr.gridY})" : "(Unknown Coords)";
 
-            // LIVE HAZARD DIAGNOSTIC TRACKER
             Debug.Log($"<color=#FF4500>[STEPPED ON TILE] Enemy '{enemy.gameObject.name}' stepped on {type} Tile at grid {coordsString}. Payload Data -> Direct Dmg: {currentData.damage}, DoT/Sec: {currentData.dotDamage}, Slow: {currentData.speedMult}</color>");
 
-            enemy.ApplyTileHazard(currentData);
+            enemy.ApplyTileHazard(currentData, type);
         }
     }
 
@@ -114,7 +110,6 @@ public class TileProperty : MonoBehaviour
         if (sr == null) sr = GetComponentInChildren<SpriteRenderer>();
         if (sr == null) return;
 
-        // CHECKPOINT COLOR PROTECTION LAYER
         GridManager grid = FindObjectOfType<GridManager>();
         if (grid != null && grid.mandatoryCheckpoints.Count > 0)
         {
@@ -134,7 +129,6 @@ public class TileProperty : MonoBehaviour
         }
         else
         {
-            // Keep the grey track color locked in if a wave is running and the tile is on the path
             EnemySpawner spawner = FindObjectOfType<EnemySpawner>();
             GridManager gridRef = FindObjectOfType<GridManager>();
 
@@ -145,18 +139,16 @@ public class TileProperty : MonoBehaviour
 
                 if (tr != null)
                 {
-                    // 1:1 grid to world translation matching your instantiation math
                     Vector3 myWorldPos = new Vector3(tr.gridX, tr.gridY, 0f);
 
                     if (gridRef.currentPathWorldPositions.Contains(myWorldPos))
                     {
                         sr.color = Color.gray;
-                        return; // Protect the visual overlay during active waves
+                        return;
                     }
                 }
             }
 
-            // Normal state color when the wave ends or for off-path tiles
             ApplyHexColor();
         }
     }

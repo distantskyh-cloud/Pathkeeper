@@ -45,9 +45,22 @@ public class TileHazard : MonoBehaviour
             payload.speedMult = speedMultiplier;
             payload.duration = effectDuration;
 
-            // Pass the custom payload configuration into the adventurer's status handler
-            adventurer.ApplyTileHazard(payload);
-            Debug.Log($"[DUNGEON HASSLE] {adventurer.gameObject.name} entered {tileName} ({type}) trap.");
+            // Safe explicit conversion map from TileHazard.HazardType to TileProperty.TileType
+            TileProperty.TileType synchronizedType = TileProperty.TileType.Normal;
+
+            switch (type)
+            {
+                case HazardType.Poison: synchronizedType = TileProperty.TileType.Poison; break;
+                case HazardType.Burn: synchronizedType = TileProperty.TileType.Burn; break;
+                case HazardType.Static: synchronizedType = TileProperty.TileType.Static; break;
+                case HazardType.Freeze: synchronizedType = TileProperty.TileType.Freeze; break;
+                case HazardType.Bleed: synchronizedType = TileProperty.TileType.Bleed; break;
+                case HazardType.Curse: synchronizedType = TileProperty.TileType.Curse; break;
+            }
+
+            // Pass both the stats payload and the cleanly mapped tile identifier type
+            adventurer.ApplyTileHazard(payload, synchronizedType);
+            Debug.Log($"[DUNGEON HASSLE] {adventurer.gameObject.name} entered {tileName} ({type}). Sending processing instructions.");
         }
     }
 }

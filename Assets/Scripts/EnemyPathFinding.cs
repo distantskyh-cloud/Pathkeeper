@@ -37,11 +37,25 @@ public class EnemyPathFinding : MonoBehaviour
         if (Vector3.Distance(transform.position, localPathPoints[targetIndex]) < 0.1f)
         {
             targetIndex++;
-        }
 
-        if (targetIndex >= localPathPoints.Count)
-        {
-            Destroy(gameObject);
+            // ARRIVAL CHECKPOINT GATE:
+            if (targetIndex >= localPathPoints.Count)
+            {
+                // Unit successfully cleared the labyrinth track path!
+                Enemy enemyComponent = GetComponent<Enemy>();
+                if (enemyComponent != null)
+                {
+                    // Cleanse status completely right before damage base transitions execute
+                    enemyComponent.ResetStatusEffects();
+                }
+
+                if (GameManager.Instance != null)
+                {
+                    GameManager.Instance.DamageBase(1);
+                }
+
+                Destroy(gameObject);
+            }
         }
     }
 }

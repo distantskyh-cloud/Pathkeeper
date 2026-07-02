@@ -16,9 +16,16 @@ public class Enemy : MonoBehaviour
     [Header("Current Live Stats (Runtime Only)")]
     public float currentHP;
 
+    // Generic Status Effects
     private float dotDamagePerSecond;
     private float effectDurationTimer;
     private bool isEffectInfinite;
+
+    // Unified Velocity Bleed Buff Data Tracking
+    [Header("Bleed Status State")]
+    public bool isBleeding = false;
+    private float bleedBaseIntensityModifier;
+    private Vector3 positionLastFrame;
 
     private EnemyPathFinding pathfindingScript;
     private bool hasUsedPaladinHeal = false;
@@ -32,6 +39,12 @@ public class Enemy : MonoBehaviour
         pathfindingScript = GetComponent<EnemyPathFinding>();
     }
 
+    void Start()
+    {
+        // Track baseline positioning to calculate real distance deltas natively
+        positionLastFrame = transform.position;
+    }
+
     public void InitializeEnemy(EnemyClass targetClass)
     {
         currentClass = targetClass;
@@ -43,78 +56,138 @@ public class Enemy : MonoBehaviour
 
         currentHP = maxHP;
 
-        if (GameManager.Instance != null)
+        if (pathfindingScript != null && GameManager.Instance != null)
         {
-            baseSpeed *= GameManager.Instance.enemySpeedMultiplier;
+            pathfindingScript.speed = baseSpeed * GameManager.Instance.enemySpeedMultiplier;
+        }
+    }
+
+    /// <summary>
+    /// Processes inbound tile statuses, incorporating custom class evasions and counters.
+    /// </summary>
+    public void ApplyTileHazard(TileProperty.HazardData payload, TileProperty.TileType hazardType)
+    {
+        // HARD COUTNERS CHECK: Slow, Freeze, and Bleed bypass ALL Rogue evasions completely!
+        bool isHardCounter = (hazardType == TileProperty.TileType.Slow ||
+                              hazardType == TileProperty.TileType.Freeze ||
+                              hazardType == TileProperty.TileType.Bleed);
+
+        if (currentClass == EnemyClass.Rogue && !isHardCounter)
+        {
+            // Rogue Evade Option 2: 25% Chance to fully dodge generic statuses
+            if (Random.value <= 0.25f)
+            {
+                Debug.Log($"[ROGUE AGILITY] '{gameObject.name}' completely dodged the {hazardType} effect!");
+                return;
+            }
+            else
+            {
+                // Mitigated failure penalty: Only suffer a reduced portion (e.g. 50%) of the payload profile
+                payload.damage *= 0.5f;
+                payload.dotDamage *= 0.5f;
+                payload.duration *= 0.5f;
+                Debug.Log($"[ROGUE MISSTEP] Avoid failed! Suffer 50% mitigated {hazardType} penalty.");
+            }
         }
 
-        if (pathfindingScript == null) pathfindingScript = GetComponent<EnemyPathFinding>();
-        if (pathfindingScript != null) pathfindingScript.speed = baseSpeed;
+        // Direct upfront collision puncture damage application
+        if (payload.damage > 0)
+        {
+            TakeDamage(payload.damage, isStatusEffect: false);
+        }
+
+        // CUSTOM MECHANIC: Check if this payload is an active Bleed application
+        if (hazardType == TileProperty.TileType.Bleed)
+        {
+            isBleeding = true;
+            // Map incoming dotDamage configuration setting to drive our scaling modifier
+            bleedBaseIntensityModifier = payload.dotDamage > 0 ? payload.dotDamage : 5f;
+            Debug.Log($"[BLOOD LETTING] '{gameObject.name}' is now bleeding permanently! Damage scales with movement activity.");
+            return;
+        }
+
+        // Standard logic track for normal non-permanent status properties
+        if (payload.dotDamage > 0 || payload.speedMult != 1f)
+        {
+            dotDamagePerSecond = payload.dotDamage;
+            isEffectInfinite = (payload.duration == -1f);
+            effectDurationTimer = isEffectInfinite ? 0f : payload.duration;
+
+            if (pathfindingScript != null)
+            {
+                float runtimeMod = baseSpeed * (GameManager.Instance != null ? GameManager.Instance.enemySpeedMultiplier : 1f);
+                pathfindingScript.speed = runtimeMod * payload.speedMult;
+            }
+        }
     }
 
     void Update()
     {
-        if (effectDurationTimer > 0 || isEffectInfinite)
+        if (currentHP <= 0) return;
+
+        // 1. VELOCITY-BASED BLEED CALCULATOR LOOP
+        if (isBleeding)
+        {
+            // Quantify real spatial tracking translation change done this frame
+            float physicalDistanceMoved = Vector3.Distance(transform.position, positionLastFrame);
+
+            if (physicalDistanceMoved > 0.0001f && pathfindingScript != null)
+            {
+                // Live tracking velocity calculation
+                float activeSpeedMagnitude = pathfindingScript.speed;
+
+                // Bleed Math Formulation: Base Factor * Spacial Step Distance * Velocity Scale Value
+                float velocityBleedTick = bleedBaseIntensityModifier * physicalDistanceMoved * activeSpeedMagnitude;
+
+                // Apply damage directly bypasses standard frame multipliers since it is already frame dependent
+                TakeDamage(velocityBleedTick, isStatusEffect: true);
+            }
+        }
+        // Cache current position index frame target update
+        positionLastFrame = transform.position;
+
+        // 2. RE-EVALUATE STANDARD TICK TIMERS
+        if (isEffectInfinite || effectDurationTimer > 0)
         {
             if (dotDamagePerSecond > 0)
             {
-                // Correctly routes status effect ticks into our consolidated damage method
                 TakeDamage(dotDamagePerSecond * Time.deltaTime, isStatusEffect: true);
             }
 
             if (!isEffectInfinite)
             {
                 effectDurationTimer -= Time.deltaTime;
-                if (effectDurationTimer <= 0) ResetStatusEffects();
+                if (effectDurationTimer <= 0)
+                {
+                    ResetStatusEffects();
+                }
             }
-        }
-    }
-
-    public void ApplyTileHazard(TileProperty.HazardData hazard)
-    {
-        if (hazard.damage > 0) TakeDamage(hazard.damage, isStatusEffect: false);
-
-        float multiplier = hazard.speedMult;
-        if (multiplier <= 0)
-        {
-            if (hazard.duration == 0 && hazard.damage == 0 && hazard.dotDamage == 0)
-            {
-                multiplier = 1f;
-            }
-        }
-
-        if (pathfindingScript != null)
-        {
-            pathfindingScript.speed = baseSpeed * multiplier;
-        }
-
-        dotDamagePerSecond = hazard.dotDamage;
-        if (hazard.duration == -1)
-        {
-            isEffectInfinite = true;
-            effectDurationTimer = 0;
-        }
-        else
-        {
-            isEffectInfinite = false;
-            effectDurationTimer = hazard.duration;
         }
     }
 
     public void ResetStatusEffects()
     {
-        dotDamagePerSecond = 0;
+        dotDamagePerSecond = 0f;
+        effectDurationTimer = 0f;
         isEffectInfinite = false;
 
-        if (pathfindingScript != null) pathfindingScript.speed = baseSpeed;
+        // Clear physical bleed status clean
+        isBleeding = false;
+
+        if (pathfindingScript != null)
+        {
+            pathfindingScript.speed = baseSpeed * (GameManager.Instance != null ? GameManager.Instance.enemyHealthMultiplier : 1f);
+        }
+        Debug.Log($"[STATUS PURGE] '{gameObject.name}' has had all status ailments cleared cleanly.");
     }
 
-    // --- CONSOLIDATED DAMAGE METHOD ---
     public void TakeDamage(float incomingDamage, bool isStatusEffect)
     {
+        if (currentHP <= 0) return;
+
         float finalDamage = incomingDamage;
 
-        // Apply armor reduction to physical hits, bypass for damage over time
+        // Status DoT calculations bypass traditional armor absorption plates natively
         if (!isStatusEffect)
         {
             finalDamage = incomingDamage * (1f - armorPercent);
@@ -122,18 +195,15 @@ public class Enemy : MonoBehaviour
 
         currentHP -= finalDamage;
 
-        Debug.Log($"[DAMAGE LIVE LOG] '{gameObject.name}' ({currentClass}) took {finalDamage:F1} damage (Type: {(isStatusEffect ? "DoT" : "Direct")}). Remaining HP: {currentHP:F1}/{maxHP}");
-
         // PALADIN MID-BOSS CLEANSE & FULL SELF-HEAL TRIGGER
         if (currentClass == EnemyClass.Paladin && !hasUsedPaladinHeal && currentHP <= (maxHP * 0.5f))
         {
             hasUsedPaladinHeal = true;
-            currentHP = maxHP; // Restores fully to Max Health (100%) per specifications
-            ResetStatusEffects();
+            currentHP = maxHP;
+            ResetStatusEffects(); // Clears Bleed as well!
             Debug.Log("[MID-BOSS TRIGGER] Paladin dropped below 50% HP! Casted Lay on Hands: Restored to full health and purged all status ailments.");
         }
 
-        // Trigger our centralized death function when health is depleted
         if (currentHP <= 0)
         {
             Die();
@@ -144,15 +214,10 @@ public class Enemy : MonoBehaviour
     {
         Debug.Log($"[DEATH EVENT] '{gameObject.name}' ({currentClass}) health dropped to 0.");
 
-        // ECONOMY REWARD HOOK: Hand over cash bounty upon unit death!
         if (EconomyManager.Instance != null)
         {
             EconomyManager.Instance.AddGold(goldBountyReward);
             Debug.Log($"[BOUNTY COLLECTED] +{goldBountyReward}g gained from killing {gameObject.name}!");
-        }
-        else
-        {
-            Debug.LogWarning("[ECONOMY WARNING] Tried to award gold, but EconomyManager.Instance is missing in the scene!");
         }
 
         Destroy(gameObject);
