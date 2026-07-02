@@ -124,13 +124,13 @@ public class Enemy : MonoBehaviour
 
         Debug.Log($"[DAMAGE LIVE LOG] '{gameObject.name}' ({currentClass}) took {finalDamage:F1} damage (Type: {(isStatusEffect ? "DoT" : "Direct")}). Remaining HP: {currentHP:F1}/{maxHP}");
 
-        // PALADIN MID-BOSS CLEANSE & SELF-HEAL TRIGGER
+        // PALADIN MID-BOSS CLEANSE & FULL SELF-HEAL TRIGGER
         if (currentClass == EnemyClass.Paladin && !hasUsedPaladinHeal && currentHP <= (maxHP * 0.5f))
         {
             hasUsedPaladinHeal = true;
-            currentHP += (maxHP * 0.35f);
+            currentHP = maxHP; // Restores fully to Max Health (100%) per specifications
             ResetStatusEffects();
-            Debug.Log("[MID-BOSS TRIGGER] Paladin dropped below 50% HP! Casted Holy Cleanse and regenerated 35% health.");
+            Debug.Log("[MID-BOSS TRIGGER] Paladin dropped below 50% HP! Casted Lay on Hands: Restored to full health and purged all status ailments.");
         }
 
         // Trigger our centralized death function when health is depleted

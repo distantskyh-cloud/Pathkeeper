@@ -2,17 +2,24 @@ using UnityEngine;
 
 public class TileRotation : MonoBehaviour
 {
-    // A list of possible directions
     public enum Direction { Up, Right, Down, Left }
     public Direction currentDirection;
 
-    // Add these so the tile knows its 'address'
     [HideInInspector] public int gridX;
     [HideInInspector] public int gridY;
 
     private void OnMouseDown()
     {
-        // 1. HARD LOCK: If a wave is active, block everything instantly
+        // 1. ISOLATED ROTATION LOCK CHECK
+        // If rotation is disabled via dev tools, stop execution here immediately.
+        // This keeps the tile direction completely frozen so swapping can happen smoothly.
+        if (GameManager.Instance != null && !GameManager.Instance.isTileRotationEnabled)
+        {
+            Debug.Log($"[ROTATION LOCKED] Tile ({gridX}, {gridY}) skipped spin update. (Swapping or Selection input can still process).");
+            return;
+        }
+
+        // 2. ACTIVE WAVE COMBAT LOCK
         EnemySpawner spawner = FindObjectOfType<EnemySpawner>();
         if (spawner != null && spawner.IsWaveRunning())
         {
@@ -20,11 +27,11 @@ public class TileRotation : MonoBehaviour
             return;
         }
 
-        // 2. UNRESTRICTED ROTATION: If no wave is active, allow infinite clicks
+        // 3. EXECUTE ROTATION
         transform.Rotate(0, 0, -90f);
         UpdateDirection();
 
-        // 3. RE-SCAN: Update the path map state
+        // 4. RE-CALCULATE LEVEL GRAPH PATH
         GridManager grid = FindObjectOfType<GridManager>();
         if (grid != null)
         {
@@ -34,10 +41,9 @@ public class TileRotation : MonoBehaviour
 
     void UpdateDirection()
     {
-        // This cycles through our enum list
         if (currentDirection == Direction.Left)
-            currentDirection = Direction.Up; // Loop back to start
+            currentDirection = Direction.Up;
         else
-            currentDirection++; // Move to next direction (Right, then Down, etc.)
+            currentDirection++;
     }
 }

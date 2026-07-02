@@ -18,7 +18,6 @@ public class EnemySpawner : MonoBehaviour
 
     [Header("Runtime Tracker Info")]
     public int currentWaveIndex = 0;
-    // Changed from private to public so GameManager button logic can inspect the queue history
     public int currentEnemyIndex = 0;
     private float spawnTimer;
     private bool isWaveActive = false;
@@ -33,12 +32,10 @@ public class EnemySpawner : MonoBehaviour
         {
             Debug.LogError("[SPAWNER ERROR] Could not find GridManager in the scene!");
         }
-        // DELETED: StartWave(0) was removed from here so it doesn't fire on empty lists!
     }
 
     void Update()
     {
-        // 1. If a wave is active and still has enemies to drop, handle the timer
         if (isWaveActive && allWaves != null && currentWaveIndex < allWaves.Count)
         {
             Wave currentWave = allWaves[currentWaveIndex];
@@ -52,7 +49,6 @@ public class EnemySpawner : MonoBehaviour
                     SpawnNextEnemyFromWave(currentWave);
                 }
             }
-            // 2. If we finished spawning, check if the board is completely clear of enemies
             else
             {
                 Enemy[] enemiesOnField = FindObjectsOfType<Enemy>();
@@ -62,7 +58,6 @@ public class EnemySpawner : MonoBehaviour
                     isWaveActive = false;
                     Debug.Log($"[WAVE CLEAN CLEAR] All enemies from {currentWave.waveName} have been defeated!");
 
-                    // Payout end-of-wave completion bonuses
                     if (EconomyManager.Instance != null)
                     {
                         int completionBonus = 50;
@@ -70,13 +65,9 @@ public class EnemySpawner : MonoBehaviour
                         Debug.Log($"[ECONOMY] Awarded +{completionBonus}g Wave Clear Payout!");
                     }
 
-                    // Reset enemy spawning sequence index tracking parameters
                     currentEnemyIndex = 0;
-
-                    // ADVANCE THE SPAWNER TRACKER INDEX: Prepare it for the next wave configuration ahead
                     currentWaveIndex++;
 
-                    // MANDATORY PIPELINE LINK: Tell GameManager the round has been cleared naturally!
                     if (GameManager.Instance != null)
                     {
                         GameManager.Instance.AdvanceWave();
@@ -94,8 +85,6 @@ public class EnemySpawner : MonoBehaviour
             return;
         }
 
-        // REMOVED: The old immediate completion check has been deleted from here!
-
         GameObject selectedPrefab = wave.enemyPrefabsToSpawn[currentEnemyIndex];
 
         if (selectedPrefab != null)
@@ -109,6 +98,16 @@ public class EnemySpawner : MonoBehaviour
             if (enemyScript != null)
             {
                 enemyScript.InitializeEnemy(enemyScript.currentClass);
+
+                // AUTOMATIC ASSIGNMENT INJECTION PIPELINE
+                if (enemyScript.currentClass == Enemy.EnemyClass.Priest ||
+                    enemyScript.currentClass == Enemy.EnemyClass.Supporter)
+                {
+                    if (activeEnemy.GetComponent<EnemyAbilities>() == null)
+                    {
+                        activeEnemy.AddComponent<EnemyAbilities>();
+                    }
+                }
             }
 
             if (movementScript != null)
@@ -124,13 +123,11 @@ public class EnemySpawner : MonoBehaviour
 
     public void StartWave(int index)
     {
-        // If the player cleared everything OR if they forgot to design waves in the inspector
         if (allWaves == null || allWaves.Count == 0 || index >= allWaves.Count)
         {
             Debug.Log("[VICTORY] All designed waves have been cleared!");
             if (GameManager.Instance != null)
             {
-                // FIXED: Changed your variable assignment loop to a clean State change call
                 GameManager.Instance.ChangeState(GameManager.GameState.Victory);
             }
             return;
@@ -141,7 +138,6 @@ public class EnemySpawner : MonoBehaviour
         spawnTimer = 0f;
         isWaveActive = true;
 
-        // Sync back to our developer GameManager tracker metrics
         if (GameManager.Instance != null)
         {
             GameManager.Instance.currentWave = currentWaveIndex + 1;
