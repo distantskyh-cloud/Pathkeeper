@@ -32,29 +32,16 @@ public class Enemy : MonoBehaviour
         {
             case EnemyClass.Swordsman:
                 maxHP = 100f; armorPercent = 0f; baseSpeed = 1.0f;
-                SetPlaceholderVisuals(sr, "#0000FF", new Vector3(1f, 1f, 1f)); // Blue
                 break;
             case EnemyClass.Tanker:
                 maxHP = 200f; armorPercent = 0.50f; baseSpeed = 0.6f;
-                SetPlaceholderVisuals(sr, "#4A4A4A", new Vector3(1.4f, 1.4f, 1f)); // Dark Gray/Big
                 break;
             case EnemyClass.Rogue:
                 maxHP = 60f; armorPercent = 0f; baseSpeed = 1.8f;
-                SetPlaceholderVisuals(sr, "#FFD700", new Vector3(0.7f, 0.7f, 1f)); // Gold/Small
                 break;
         }
         currentHP = maxHP;
     }
-
-    void SetPlaceholderVisuals(SpriteRenderer sr, string hexColor, Vector3 scale)
-    {
-        transform.localScale = scale;
-        if (sr != null && ColorUtility.TryParseHtmlString(hexColor, out Color customColor))
-        {
-            sr.color = customColor;
-        }
-    }
-
     void Update()
     {
         if (effectDurationTimer > 0 || isEffectInfinite)
